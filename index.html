@@ -242,7 +242,7 @@ firebase.initializeApp({
 const db=firebase.firestore();
 const DB={
   DEF:{password:'',isAdmin:false,settings:{weekHours:40,timezone:'Europe/Berlin'},stamps:{},calendar:{},holidays:{},customCharts:[],pausePresets:[],dashKpis:[],hiddenKpis:[],notes:{},calStats:['vacation','carryover','sick','homeoffice'],exportOpts:['excel','times','calInvite','importTimes']},
-  async ensure(){const a=await db.collection('users').doc('admin').get();if(!a.exists)await db.collection('users').doc('admin').set({...this.DEF,password:'admin',isAdmin:true});const m=await db.collection('users').doc('MIK').get();if(!m.exists)await db.collection('users').doc('MIK').set({...this.DEF,password:'admin'})},
+  async ensure(){const a=await db.collection('users').doc('admin').get();if(!a.exists)await db.collection('users').doc('admin').set({...this.DEF,password:'',isAdmin:true});const m=await db.collection('users').doc('MIK').get();if(!m.exists)await db.collection('users').doc('MIK').set({...this.DEF,password:''})},
   async get(id){const d=await db.collection('users').doc(id).get();return d.exists?d.data():null},
   async set(id,data){await db.collection('users').doc(id).set(data)},
   async upd(id,f){await db.collection('users').doc(id).update(f)},
@@ -512,8 +512,8 @@ const CL={
     document.getElementById('calYE').textContent=A.calY;this.renderStats();this.renderLeg();
     const c=document.getElementById('calMos');c.innerHTML='';
     const mn=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-    const curKW=U.getKW(U.now());
-    for(let m=0;m<12;m++){const div=document.createElement('div');div.className='cd';div.id='calM'+m;div.style.animationDelay=m*20+'ms';div.innerHTML=`<div class="ct">${mn[m]}</div>`+this.rMo(A.calY,m,curKW);c.appendChild(div)}
+    const curKW=U.getKW(U.now());const now=U.now();const isCurrentYear=A.calY===now.getFullYear();const curMonth=now.getMonth();
+    for(let m=0;m<12;m++){const div=document.createElement('div');div.className='cd';div.id='calM'+m;div.style.animationDelay=m*20+'ms';if(isCurrentYear&&m===curMonth)div.style.animation='currentKW 3s ease-in-out infinite';div.innerHTML=`<div class="ct">${mn[m]}</div>`+this.rMo(A.calY,m,curKW);c.appendChild(div)}
   },
   rMo(y,mo,curKW){
     const f=new Date(y,mo,1),la=new Date(y,mo+1,0),sd=(f.getDay()+6)%7,td=U.dk(U.now()),hols=HOL.get(y),ud=A.d();
@@ -525,10 +525,7 @@ const CL={
       let cl='cdy';if(we)cl+=' we';if(hol)cl+=' hol';if(isT)cl+=' today';if(hs)cl+=' stpd';
       if(ce)cl+=' '+ce.replace('_','-');
       let kwl='';if((d+sd-1)%7===0||d===1)kwl=`<span style="position:absolute;top:0;left:1px;font-size:7px;color:var(--text2);opacity:.4">${kw}</span>`;
-      // Current KW highlight via red border
-      let sty='position:relative';
-      if(isCurrentKW)sty+=';box-shadow:inset 0 0 0 1px rgba(248,113,113,0.3)';
-      h+=`<div class="${cl}" onclick="CL.toggle('${k}')" title="${hol||''}" style="${sty}">${kwl}${d}</div>`
+      h+=`<div class="${cl}" onclick="CL.toggle('${k}')" title="${hol||''}" style="position:relative">${kwl}${d}</div>`
     }
     return h+'</div>'
   },
