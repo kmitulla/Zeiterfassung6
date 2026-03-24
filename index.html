@@ -321,7 +321,7 @@ const A={
     if(p==='stemp')ST.updPage();
     if(p==='cal'){CL.render();setTimeout(()=>CL.scrollToday(),200)}
     if(p==='dash')DA.render();
-    if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),100)}
+    if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),300)}
     if(p==='settings')SE.load();
     if(p==='export')EX.renderPage();
     if(p!=='week')document.getElementById('mainContent').scrollTop=0;
@@ -696,30 +696,39 @@ const WK={
     document.getElementById('wkContent').innerHTML=html
   },
   renderCols(){const cols=[{id:'tag',l:'Tag'},{id:'datum',l:'Datum'},{id:'zeit',l:'Zeit'},{id:'pause',l:'P.'},{id:'std',l:'Std'},{id:'diff',l:'+/-'},{id:'typ',l:'Typ'},{id:'notiz',l:'Notiz'}];document.getElementById('colTog').innerHTML=cols.map(c=>`<button class="${this.vis[c.id]?'active':''}" onclick="WK.vis['${c.id}']=!WK.vis['${c.id}'];WK.render()">${c.l}</button>`).join('')},
-  _scrollSync:null,
+  _scrollSync:null,_progScroll:false,
   scrollKW(kw){
     const el=document.getElementById('kw'+kw),mc=document.getElementById('mainContent');
-    if(el&&mc){const stickyH=document.querySelector('.wsk');const off=stickyH?stickyH.offsetHeight+10:80;const top=el.offsetTop-mc.offsetTop-off;mc.scrollTo({top,behavior:'smooth'})}
-    this._updateTab(kw)
+    if(el&&mc){
+      const stickyH=document.querySelector('.wsk');const off=stickyH?stickyH.offsetHeight+10:80;
+      const rect=el.getBoundingClientRect(),mcRect=mc.getBoundingClientRect();
+      const top=mc.scrollTop+(rect.top-mcRect.top)-off;
+      this._progScroll=true;
+      mc.scrollTo({top,behavior:'smooth'});
+      setTimeout(()=>{this._progScroll=false},800)
+    }
+    this._setActiveTab(kw,true)
   },
-  _updateTab(kw){
+  _setActiveTab(kw,animate){
     document.querySelectorAll('#kwTabs .ti').forEach(t=>t.classList.remove('active'));
-    const tab=document.getElementById('kwT'+kw);if(tab){tab.classList.add('active');tab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}
+    const tab=document.getElementById('kwT'+kw);
+    if(tab){tab.classList.add('active');tab.scrollIntoView({behavior:animate?'smooth':'auto',block:'nearest',inline:'center'})}
   },
   initScrollSync(){
     const mc=document.getElementById('mainContent');if(!mc||this._scrollSync)return;
     this._scrollSync=true;
-    let ticking=false;
+    let timer=null;
     mc.addEventListener('scroll',()=>{
-      if(A.page!=='week'||ticking)return;
-      ticking=true;requestAnimationFrame(()=>{
-        const cards=document.querySelectorAll('.kwcard');const stickyH=document.querySelector('.wsk');
-        const off=(stickyH?stickyH.offsetHeight:80)+mc.getBoundingClientRect().top+20;
-        let closest=null,closestDist=Infinity;
-        cards.forEach(c=>{const r=c.getBoundingClientRect();const dist=Math.abs(r.top-off);if(dist<closestDist){closestDist=dist;closest=c}});
-        if(closest){const kw=parseInt(closest.id.replace('kw',''));if(!isNaN(kw))this._updateTab(kw)}
-        ticking=false
-      })
+      if(A.page!=='week'||this._progScroll)return;
+      if(timer)clearTimeout(timer);
+      timer=setTimeout(()=>{
+        const cards=document.querySelectorAll('.kwcard');
+        const stickyH=document.querySelector('.wsk');
+        const threshold=(stickyH?stickyH.offsetHeight:80)+mc.getBoundingClientRect().top+40;
+        let best=null,bestDist=Infinity;
+        cards.forEach(c=>{const t=c.getBoundingClientRect().top;const d=Math.abs(t-threshold);if(d<bestDist){bestDist=d;best=c}});
+        if(best){const kw=parseInt(best.id.replace('kw',''));if(!isNaN(kw))this._setActiveTab(kw,false)}
+      },80)
     })
   },
   openEdit(dk2){
