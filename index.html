@@ -43,7 +43,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .hb{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:var(--tr);background:var(--bg3)}
 .hb:active{transform:scale(.9)}
 .hb svg{width:18px;height:18px;stroke:var(--text2);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.mc{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:80px}
+.mc{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(70px + max(8px,env(safe-area-inset-bottom)))}
 .pg{display:none;padding:16px;max-width:900px;margin:0 auto;width:100%}
 .pg.active{display:block}
 .pt{font-size:22px;font-weight:600;margin-bottom:20px}
@@ -197,7 +197,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 
 @media(min-width:768px){
   .bn{left:50%;transform:translateX(-50%);max-width:500px;border-radius:var(--rl) var(--rl) 0 0;border:1px solid rgba(255,255,255,.05);border-bottom:none}
-  .mc{padding-bottom:90px}.pg{padding:24px}
+  .mc{padding-bottom:calc(80px + max(8px,env(safe-area-inset-bottom)))}.pg{padding:24px}
   .sg{grid-template-columns:repeat(4,1fr)}
   .mo .ml{border-radius:var(--rl)}.mo{align-items:center}.ml{transform:translateY(30px);max-height:80vh}.mo.active .ml{transform:translateY(0)}
 }
@@ -684,7 +684,6 @@ const WK={
     for(const[kw,days]of kwMap){if(!days.some(d=>d.getFullYear()===A.weekY)&&kw>1)kwMap.delete(kw)}
     const kwList=[...kwMap.entries()].sort((a,b)=>a[1][0]-b[1][0]).map(e=>e[0]);
     const curKW=U.getKW(U.now());
-    document.getElementById('kwTabs').innerHTML=kwList.map(kw=>`<button class="ti ${kw===curKW?'active':''}" onclick="WK.scrollKW(${kw})" id="kwT${kw}">KW${kw}</button>`).join('');
     let html='',cum=A.getFlex(A.weekY);const v=this.vis;
     kwList.forEach(kw=>{
       const days=kwMap.get(kw)||[];let wOT=0,wW=0,wR='';
@@ -705,43 +704,17 @@ const WK={
     document.getElementById('wkContent').innerHTML=html
   },
   renderCols(){const cols=[{id:'tag',l:'Tag'},{id:'datum',l:'Datum'},{id:'zeit',l:'Zeit'},{id:'pause',l:'P.'},{id:'std',l:'Std'},{id:'diff',l:'+/-'},{id:'typ',l:'Typ'},{id:'notiz',l:'Notiz'}];document.getElementById('colTog').innerHTML=cols.map(c=>`<button class="${this.vis[c.id]?'active':''}" onclick="WK.vis['${c.id}']=!WK.vis['${c.id}'];WK.render()">${c.l}</button>`).join('')},
-  _scrollSync:null,_progScroll:false,
   scrollKW(kw){
     const el=document.getElementById('kw'+kw);
     const mc=document.getElementById('mainContent');
     if(el&&mc){
-      this._progScroll=true;
       const stickyH=document.querySelector('.wsk');
-      const offset=stickyH?stickyH.offsetHeight+10:140;
+      const offset=stickyH?stickyH.offsetHeight+10:80;
       const elRect=el.getBoundingClientRect();
       const mcRect=mc.getBoundingClientRect();
       const top=mc.scrollTop+(elRect.top-mcRect.top)-offset;
-      mc.scrollTo({top:Math.max(0,top),behavior:'smooth'});
-      setTimeout(()=>{this._progScroll=false},800)
+      mc.scrollTo({top:Math.max(0,top),behavior:'smooth'})
     }
-    this._setActiveTab(kw,true)
-  },
-  _setActiveTab(kw,animate){
-    document.querySelectorAll('#kwTabs .ti').forEach(t=>t.classList.remove('active'));
-    const tab=document.getElementById('kwT'+kw);
-    if(tab){tab.classList.add('active');tab.scrollIntoView({behavior:animate?'smooth':'auto',block:'nearest',inline:'center'})}
-  },
-  initScrollSync(){
-    const mc=document.getElementById('mainContent');if(!mc||this._scrollSync)return;
-    this._scrollSync=true;
-    let timer=null;
-    mc.addEventListener('scroll',()=>{
-      if(A.page!=='week'||this._progScroll)return;
-      if(timer)clearTimeout(timer);
-      timer=setTimeout(()=>{
-        const cards=document.querySelectorAll('.kwcard');
-        const stickyH=document.querySelector('.wsk');
-        const threshold=(stickyH?stickyH.offsetHeight:80)+mc.getBoundingClientRect().top+40;
-        let best=null,bestDist=Infinity;
-        cards.forEach(c=>{const t=c.getBoundingClientRect().top;const d=Math.abs(t-threshold);if(d<bestDist){bestDist=d;best=c}});
-        if(best){const kw=parseInt(best.id.replace('kw',''));if(!isNaN(kw))this._setActiveTab(kw,false)}
-      },80)
-    })
   },
   openEdit(dk2){
     this.editDk=dk2;const ud=A.d(),ent=(ud.stamps&&ud.stamps[dk2])||[],note=(ud.notes&&ud.notes[dk2])||'';
@@ -928,7 +901,7 @@ document.getElementById('root').innerHTML=`
 
 <div class="pg" id="pg_dash"><div class="pt" style="display:flex;align-items:center;justify-content:space-between">Dashboard<div style="display:flex;gap:6px"><button class="btn bs bg" onclick="MO.open('kpiO')">+ KPI</button><button class="btn bs bg" onclick="MO.open('chO')">+ Diagramm</button></div></div><div id="dashSt" class="sg"></div><div id="dashCh"></div><div id="custCh"></div></div>
 
-<div class="pg" id="pg_week"><div class="wsk"><div class="wyn"><div class="cn"><button onclick="A.weekY--;WK.render()">${SVG.L}</button></div><h3 id="wkYE"></h3><div class="cn"><button onclick="A.weekY++;WK.render()">${SVG.R}</button></div></div><div class="cto" id="colTog"></div><div class="tb" id="kwTabs"></div></div><div id="wkContent"></div></div>
+<div class="pg" id="pg_week"><div class="wsk"><div class="wyn"><div class="cn"><button onclick="A.weekY--;WK.render()">${SVG.L}</button></div><h3 id="wkYE"></h3><div class="cn"><button onclick="A.weekY++;WK.render()">${SVG.R}</button></div></div><div class="cto" id="colTog"></div></div><div id="wkContent"></div></div>
 
 <div class="pg" id="pg_export"><div class="pt">Export</div><div id="expContent"></div></div>
 
@@ -968,7 +941,7 @@ async function init(){
   document.getElementById('loginUser').addEventListener('input',async function(){const u=this.value.trim();if(!u||u==='admin'){document.getElementById('loginHint').style.display='none';return}const d=await DB.get(u);document.getElementById('loginHint').style.display=d?'none':'block';if(!d)document.getElementById('loginHint').textContent='Neu hier? Vergebe ein Passwort und melde dich an.'});
   document.addEventListener('touchstart',e=>{if(!['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))document.activeElement.blur()});
   document.getElementById('mainContent')?.addEventListener('scroll',function(){if(A.page==='dash'){const sg=document.getElementById('dashSt');if(sg)sg.classList.toggle('cmp',this.scrollTop>80)}});
-  WK.initScrollSync();
+
   const saved=localStorage.getItem('ras_user');
   if(saved&&saved!=='admin'){const d=await DB.get(saved);if(d){A.loginAs(saved);return}}
   document.getElementById('loginPage').style.display='flex'
