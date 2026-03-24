@@ -319,10 +319,10 @@ const A={
     if(p==='stemp')ST.updPage();
     if(p==='cal'){CL.render();setTimeout(()=>CL.scrollToday(),200)}
     if(p==='dash')DA.render();
-    if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),300)}
+    if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),100)}
     if(p==='settings')SE.load();
     if(p==='export')EX.renderPage();
-    document.getElementById('mainContent').scrollTop=0
+    if(p!=='week')document.getElementById('mainContent').scrollTop=0
   }
 };
 
@@ -693,7 +693,32 @@ const WK={
     document.getElementById('wkContent').innerHTML=html
   },
   renderCols(){const cols=[{id:'tag',l:'Tag'},{id:'datum',l:'Datum'},{id:'zeit',l:'Zeit'},{id:'pause',l:'P.'},{id:'std',l:'Std'},{id:'diff',l:'+/-'},{id:'typ',l:'Typ'},{id:'notiz',l:'Notiz'}];document.getElementById('colTog').innerHTML=cols.map(c=>`<button class="${this.vis[c.id]?'active':''}" onclick="WK.vis['${c.id}']=!WK.vis['${c.id}'];WK.render()">${c.l}</button>`).join('')},
-  scrollKW(kw){const el=document.getElementById('kw'+kw);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});document.querySelectorAll('#kwTabs .ti').forEach(t=>t.classList.remove('active'));const tab=document.getElementById('kwT'+kw);if(tab){tab.classList.add('active');tab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}},
+  _scrollSync:null,
+  scrollKW(kw){
+    const el=document.getElementById('kw'+kw),mc=document.getElementById('mainContent');
+    if(el&&mc){const stickyH=document.querySelector('.wsk');const off=stickyH?stickyH.offsetHeight+10:80;const top=el.offsetTop-mc.offsetTop-off;mc.scrollTo({top,behavior:'smooth'})}
+    this._updateTab(kw)
+  },
+  _updateTab(kw){
+    document.querySelectorAll('#kwTabs .ti').forEach(t=>t.classList.remove('active'));
+    const tab=document.getElementById('kwT'+kw);if(tab){tab.classList.add('active');tab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}
+  },
+  initScrollSync(){
+    const mc=document.getElementById('mainContent');if(!mc||this._scrollSync)return;
+    this._scrollSync=true;
+    let ticking=false;
+    mc.addEventListener('scroll',()=>{
+      if(A.page!=='week'||ticking)return;
+      ticking=true;requestAnimationFrame(()=>{
+        const cards=document.querySelectorAll('.kwcard');const stickyH=document.querySelector('.wsk');
+        const off=(stickyH?stickyH.offsetHeight:80)+mc.getBoundingClientRect().top+20;
+        let closest=null,closestDist=Infinity;
+        cards.forEach(c=>{const r=c.getBoundingClientRect();const dist=Math.abs(r.top-off);if(dist<closestDist){closestDist=dist;closest=c}});
+        if(closest){const kw=parseInt(closest.id.replace('kw',''));if(!isNaN(kw))this._updateTab(kw)}
+        ticking=false
+      })
+    })
+  },
   openEdit(dk2){
     this.editDk=dk2;const ud=A.d(),ent=(ud.stamps&&ud.stamps[dk2])||[],note=(ud.notes&&ud.notes[dk2])||'';
     let h=`<div style="font-size:14px;color:var(--text2);margin-bottom:10px">${U.fD(U.pdk(dk2))} (${U.wdL(U.pdk(dk2))})</div><div id="eEnts">`;
@@ -904,6 +929,7 @@ async function init(){
   document.getElementById('loginUser').addEventListener('input',async function(){const u=this.value.trim();if(!u||u==='admin'){document.getElementById('loginHint').style.display='none';return}const d=await DB.get(u);document.getElementById('loginHint').style.display=d?'none':'block';if(!d)document.getElementById('loginHint').textContent='Neu hier? Vergebe ein Passwort und melde dich an.'});
   document.addEventListener('touchstart',e=>{if(!['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))document.activeElement.blur()});
   document.getElementById('mainContent')?.addEventListener('scroll',function(){if(A.page==='dash'){const sg=document.getElementById('dashSt');if(sg)sg.classList.toggle('cmp',this.scrollTop>80)}});
+  WK.initScrollSync();
   const saved=localStorage.getItem('ras_user');
   if(saved&&saved!=='admin'){const d=await DB.get(saved);if(d){A.loginAs(saved);return}}
   document.getElementById('loginPage').style.display='flex'
