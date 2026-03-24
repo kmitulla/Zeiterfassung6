@@ -322,7 +322,7 @@ const A={
     if(p==='stemp')ST.updPage();
     if(p==='cal'){CL.render();setTimeout(()=>CL.scrollToday(),200)}
     if(p==='dash')DA.render();
-    if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),300)}
+    if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),500)}
     if(p==='settings')SE.load();
     if(p==='export')EX.renderPage();
     if(p!=='week')document.getElementById('mainContent').scrollTop=0;
@@ -366,8 +366,9 @@ const MO={open(id){document.getElementById(id).classList.add('active')},close(id
 
 const ST={
   clk:null,sp:null,
-  startClock(){if(this.clk)clearInterval(this.clk);this.uc();this.clk=setInterval(()=>this.uc(),1e4)},
-  uc(){const n=U.now();const c=document.getElementById('sClock'),d=document.getElementById('sDate');if(c)c.textContent=U.fT(n);if(d)d.textContent=U.wdL(n)+', '+U.fD(n)},
+  startClock(){if(this.clk)clearInterval(this.clk);this.uc();this.clk=setInterval(()=>this.uc(),3e4)},
+  uc(){const n=U.now();const c=document.getElementById('sClock'),d=document.getElementById('sDate');if(c)c.textContent=U.fT(n);if(d)d.textContent=U.wdL(n)+', '+U.fD(n);this._updSince()},
+  _updSince(){const ud=A.d(),el=document.getElementById('sSince');if(!el)return;if(!ud.currentStamp){el.textContent='';return}const diff=Date.now()-new Date(ud.currentStamp).getTime();const h=Math.floor(diff/36e5),m=Math.floor((diff%36e5)/6e4);el.textContent='seit '+h+'h '+U.S(m)+'min'},
   updUI(){
     const ud=A.d(),btn=document.getElementById('stampBtn'),lbl=document.getElementById('sLbl'),st=document.getElementById('sStat'),ti=document.getElementById('sTi'),ca=document.getElementById('cancelA'),nb=document.getElementById('nachBtn');
     if(!btn)return;
@@ -589,7 +590,8 @@ const DA={
       const pre=k.u==='h'&&k.v>0?'+':'';
       const uStr=k.u==='h'?'h':k.u==='T'?' T':k.u==='min'?' min':'';
       const delF=i<defK.length?'DA.hideDef('+i+')':'DA.delK('+(i-defK.length)+')';
-      return`<div class="sk ${cl}" style="animation-delay:${i*50}ms" draggable="true" ondragstart="DA.ds(event,${i})" ondragover="event.preventDefault()" ondrop="DA.dd(event,${i})" ontouchstart="DA.ts(event,this)" ontouchend="DA.te(event)"><button class="sdl" onclick="event.stopPropagation();${delF}">✕</button><div class="sv">${pre}${typeof k.v==='number'?k.v.toFixed(1):k.v}${uStr}</div><div class="slb">${k.l}</div></div>`
+      const fmtV=typeof k.v==='number'?(k.u==='T'?Math.round(k.v):k.v.toFixed(1)):k.v;
+      return`<div class="sk ${cl}" style="animation-delay:${i*50}ms" draggable="true" ondragstart="DA.ds(event,${i})" ondragover="event.preventDefault()" ondrop="DA.dd(event,${i})" ontouchstart="DA.ts(event,this)" ontouchend="DA.te(event)"><button class="sdl" onclick="event.stopPropagation();${delF}">✕</button><div class="sv">${pre}${fmtV}${uStr}</div><div class="slb">${k.l}</div></div>`
     }).join('');
     // Charts
     let wB='';for(let i=0;i<7;i++){const d=new Date(ws);d.setDate(d.getDate()+i);const dd=U.dk(d),de=st[dd]||[];let dh=0;de.forEach(e=>{dh+=(new Date(e.out)-new Date(e.in))/36e5-(e.pause||0)/60});const pc=Math.min(dh/10*100,100);wB+=`<div class="bar" style="--h:${Math.max(pc,2)}%;height:var(--h);background:${dh>A.dH()?'var(--green)':'var(--blue)'};animation-delay:${i*80}ms"><span class="brt">${dh.toFixed(1)}h</span><span class="brl">${U.wd(d)}</span></div>`}
@@ -833,9 +835,24 @@ const EX={
     const ud=A.d(),st=ud.stamps||{},cal=ud.calendar||{},name=(ud.settings&&ud.settings.fullName)||A.user;
     let text='Arbeitszeiten: '+name+'\nZeitraum: '+U.fD(U.pdk(from))+' – '+U.fD(U.pdk(to))+'\n'+'─'.repeat(45)+'\n\n';
     const d=new Date(from),toD=new Date(to);
-    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[],ce=cal[dk2],hol=HOL.is(dk2);let typ='';if(U.isWE(d))typ=' [WE]';if(hol)typ=' [FT: '+hol+']';if(ce)typ=' ['+A.tLabel(ce)+']';
-      if(ent.length){ent.forEach(e=>{const w=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60;text+=U.fD(d)+' ('+U.wd(d)+')'+typ+': '+U.fT(new Date(e.in))+' – '+U.fT(new Date(e.out))+', P: '+(e.pause||0)+'min, '+w.toFixed(1)+'h\n'})}else if(ce){text+=U.fD(d)+' ('+U.wd(d)+')'+typ+'\n'}
-      const note=ud.notes&&ud.notes[dk2];if(note)text+='  Notiz: '+note+'\n';d.setDate(d.getDate()+1)}
+    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[],ce=cal[dk2],hol=HOL.is(dk2),note=ud.notes&&ud.notes[dk2];
+      const hasData=ent.length||ce||hol;
+      if(hasData){
+        if(ent.length){
+          const times=ent.map(e=>U.fT(new Date(e.in))+' – '+U.fT(new Date(e.out)));
+          text+=U.fD(d)+' ('+U.wd(d)+'): '+times.join(', ')+'\n';
+          let totalP=0,totalW=0;ent.forEach(e=>{const p=e.pause||0;totalP+=p;totalW+=((new Date(e.out)-new Date(e.in))/6e4-p)/60});
+          if(totalP>0)text+='P: '+totalP+'min\n';
+          text+='Summe: '+totalW.toFixed(1)+'h\n'
+        }else{
+          text+=U.fD(d)+' ('+U.wd(d)+'):\n'
+        }
+        if(hol)text+=hol+'\n';
+        if(ce)text+=A.tLabel(ce)+'\n';
+        if(note)text+='„'+note+'"\n';
+        text+='\n'
+      }
+      d.setDate(d.getDate()+1)}
     const act=document.querySelector('input[name=tAct]:checked')?.value||'copy';
     if(act==='copy'){navigator.clipboard.writeText(text).then(()=>U.toast('Kopiert!','success'))}
     else{const em=(ud.settings&&ud.settings.emailTimes)||'';window.location.href='mailto:'+em+'?subject='+encodeURIComponent(name+' - Arbeitszeiten '+U.fD(U.pdk(from))+' – '+U.fD(U.pdk(to)))+'&body='+encodeURIComponent(text)}
@@ -890,7 +907,7 @@ document.getElementById('root').innerHTML=`
 <div id="appMain" style="display:none;height:100%;flex-direction:column">
 <div class="hdr"><div><h1>RAS Zeiterfassung</h1><div class="ub" id="headerUser"></div></div><div class="ha"><button class="hb" onclick="A.nav('settings')">${SVG.gear}</button><button class="hb" onclick="A.logout()">${SVG.out}</button></div></div>
 <div class="mc" id="mainContent">
-<div class="pg active" id="pg_stemp"><div class="ss"><button class="sb si" id="stampBtn" onclick="ST.toggle()"><div class="shim"></div><span class="sc" id="sClock">--:--</span><span class="sd" id="sDate"></span><span class="sl" id="sLbl">Einstempeln</span></button><div class="sst" id="sStat"></div><div class="sti" id="sTi"></div></div>
+<div class="pg active" id="pg_stemp"><div class="ss"><button class="sb si" id="stampBtn" onclick="ST.toggle()"><div class="shim"></div><span class="sc" id="sClock">--:--</span><span class="sd" id="sDate"></span><span class="sl" id="sLbl">Einstempeln</span><span class="sd" id="sSince" style="font-size:9px;margin-top:2px"></span></button><div class="sst" id="sStat"></div><div class="sti" id="sTi"></div></div>
 <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px"><button class="mb" onclick="ST.openManual()">${SVG.edit} Manuell eintragen</button><button class="nachb" id="nachBtn" onclick="ST.openNach()">Stempeln nachholen</button></div>
 <div class="cd" style="margin-top:16px"><div class="ct">Heute <span id="todayType" style="font-size:11px;font-weight:400;margin-left:6px"></span></div><div id="todayInfo" style="font-size:13px;color:var(--text2)"></div></div>
 <div class="cd"><div class="ct">Diese Woche</div><div id="weekInfo" style="font-size:13px;color:var(--text2)"></div></div>
