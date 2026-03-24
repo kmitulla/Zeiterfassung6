@@ -1,0 +1,21 @@
+// ===================================================
+// DIESE REGELN IN FIREBASE CONSOLE EINFÜGEN:
+// Firebase Console → Firestore Database → Rules
+// ===================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+  }
+}
+
+// ===================================================
+// OPTIONAL: API Key auf Domain beschränken:
+// Google Cloud Console → APIs & Services → Credentials
+// → Deinen API Key auswählen → Application restrictions
+// → HTTP referrers → Deine GitHub Pages URL eintragen
+// z.B. https://deinname.github.io/ras-zeiterfassung/*
+// ===================================================
