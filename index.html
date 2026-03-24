@@ -547,8 +547,8 @@ const CL={
     let si=0,ho=0,biz=0,flex=0;
     Object.keys(cal).forEach(k=>{if(k.startsWith(y+'-')){if(cal[k]==='sick')si++;if(cal[k]==='homeoffice')ho++;if(cal[k]==='business')biz++;if(cal[k]==='flexday')flex++}});
     const map={vacation:{v:`${uv}/${mv}`,l:'Urlaub'},carryover:{v:`${uc}/${mc}`,l:'Vorjahr'},sick:{v:si,l:'Krank'},homeoffice:{v:ho,l:'Homeoffice'},business:{v:biz,l:'Geschäftsr.'},flexday:{v:flex,l:'Flexzeit'}};
-    let html=shown.map(id=>{const m=map[id];return m?`<div class="sk" style="padding:6px 8px"><button class="sdl" onclick="CL.rmStat('${id}')">✕</button><div class="sv" style="font-size:14px">${m.v}</div><div class="slb">${m.l}</div></div>`:''}).join('');
-    html+=`<div class="sk" style="padding:6px 8px;cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="CL.addStat()"><div style="font-size:16px;color:var(--text2)">+</div></div>`;
+    let html=shown.map(id=>{const m=map[id];return m?`<div class="sk" style="padding:4px 6px;text-align:center"><button class="sdl" onclick="CL.rmStat('${id}')" style="top:1px;right:2px;font-size:8px;padding:2px">✕</button><div class="sv" style="font-size:13px">${m.v}</div><div class="slb" style="font-size:8px">${m.l}</div></div>`:''}).join('');
+    html+=`<div class="sk" style="padding:4px 6px;cursor:pointer;display:flex;align-items:center;justify-content:center" onclick="CL.addStat()"><div style="font-size:14px;color:var(--text2)">+</div></div>`;
     document.getElementById('calSt').innerHTML=html
   },
   async rmStat(id){const ud=A.d();const s=(ud.calStats||['vacation','carryover','sick','homeoffice']).filter(x=>x!==id);await A.sf('calStats',s)},
@@ -897,7 +897,7 @@ document.getElementById('root').innerHTML=`
 <div class="cd" onclick="A.weekY=U.now().getFullYear();A.nav('week')" style="cursor:pointer"><div class="ct">Diese Woche</div><div id="weekInfo" style="font-size:13px;color:var(--text2)"></div></div>
 <div id="cancelA" style="text-align:center;display:none;padding:16px 0"><button class="csb" onclick="ST.cancel()">Stempelvorgang abbrechen</button></div></div>
 
-<div class="pg" id="pg_cal"><div class="csk"><div class="ch"><div class="cn"><button onclick="A.calY--;CL.render()">${SVG.L}</button></div><h3 id="calYE"></h3><div class="cn"><button onclick="A.calY++;CL.render()">${SVG.R}</button></div></div><div id="calSt" class="sg" style="grid-template-columns:repeat(2,1fr);gap:5px"></div><div class="cleg" id="calLeg"></div></div><div id="calMos" style="margin-top:6px"></div></div>
+<div class="pg" id="pg_cal"><div class="csk"><div class="ch"><div class="cn"><button onclick="A.calY--;CL.render()">${SVG.L}</button></div><h3 id="calYE"></h3><div class="cn"><button onclick="A.calY++;CL.render()">${SVG.R}</button></div></div><div id="calSt" class="sg" style="grid-template-columns:repeat(4,1fr);gap:4px"></div><div class="cleg" id="calLeg"></div></div><div id="calMos" style="margin-top:6px"></div></div>
 
 <div class="pg" id="pg_dash"><div class="pt" style="display:flex;align-items:center;justify-content:space-between">Dashboard<div style="display:flex;gap:6px"><button class="btn bs bg" onclick="MO.open('kpiO')">+ KPI</button><button class="btn bs bg" onclick="MO.open('chO')">+ Diagramm</button></div></div><div id="dashSt" class="sg"></div><div id="dashCh"></div><div id="custCh"></div></div>
 
