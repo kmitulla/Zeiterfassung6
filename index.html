@@ -105,9 +105,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .cn button{width:32px;height:32px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;transition:var(--tr)}
 .cn button:active{transform:scale(.88)}
 .cn svg{width:16px;height:16px;stroke:var(--text);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
 .cdh{text-align:center;font-size:10px;color:var(--text2);padding:3px 0;font-weight:500}
-.cdy{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:11px;border-radius:var(--rs);position:relative;transition:all .2s ease;cursor:pointer}
+.cdy{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:10px;border-radius:var(--rs);position:relative;transition:all .2s ease;cursor:pointer;max-width:36px}
 .cdy:hover{background:var(--bg3)}
 .cdy.we{color:var(--text2);opacity:.5}
 .cdy.hol{color:var(--orange);font-weight:500;opacity:1}
@@ -149,7 +149,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .wt tr:hover td{background:rgba(255,255,255,.02)}
 .bdg{display:inline-block;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:500}
 .bdg-g{background:var(--green-bg);color:var(--green)}.bdg-r{background:var(--red-bg);color:var(--red)}.bdg-o{background:var(--orange-bg);color:var(--orange)}.bdg-b{background:var(--blue-glow);color:var(--blue)}.bdg-p{background:var(--purple-bg);color:var(--purple)}
-.kwcard{animation:fadeIn .3s ease both}
+.kwcard{animation:fadeIn .3s ease both;scroll-margin-top:140px}
 .kwcard.current-kw{animation:currentKW 3s ease-in-out infinite;border-radius:var(--rl)}
 
 /* Charts */
@@ -264,7 +264,10 @@ const TYPES=[
 ];
 
 const A={
-  user:null,_d:{},_unsub:null,calY:new Date().getFullYear(),weekY:new Date().getFullYear(),page:'stemp',zoom:100,
+  user:null,_d:{},_unsub:null,calY:new Date().getFullYear(),weekY:new Date().getFullYear(),page:'stemp',_zoom:{stemp:100,cal:100,dash:100,week:100,settings:100,export:100},
+  get zoom(){return this._zoom[this.page]||100},
+  set zoom(v){this._zoom[this.page]=v},
+  applyZoom(){const pg=document.getElementById('pg_'+this.page);if(pg)pg.style.zoom=this.zoom+'%'},
   d(){return this._d},
   tz(){return(this._d.settings&&this._d.settings.timezone)||'Europe/Berlin'},
   dH(){return((this._d.settings&&this._d.settings.weekHours)||40)/5},
@@ -319,10 +322,12 @@ const A={
     if(p==='stemp')ST.updPage();
     if(p==='cal'){CL.render();setTimeout(()=>CL.scrollToday(),200)}
     if(p==='dash')DA.render();
-    if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),100)}
+    if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),300)}
     if(p==='settings')SE.load();
     if(p==='export')EX.renderPage();
-    if(p!=='week')document.getElementById('mainContent').scrollTop=0
+    if(p!=='week')document.getElementById('mainContent').scrollTop=0;
+    document.querySelectorAll('.pg').forEach(e=>e.style.zoom='');
+    const activePg=document.getElementById('pg_'+p);if(activePg)activePg.style.zoom=(this._zoom[p]||100)+'%'
   }
 };
 
@@ -693,30 +698,36 @@ const WK={
     document.getElementById('wkContent').innerHTML=html
   },
   renderCols(){const cols=[{id:'tag',l:'Tag'},{id:'datum',l:'Datum'},{id:'zeit',l:'Zeit'},{id:'pause',l:'P.'},{id:'std',l:'Std'},{id:'diff',l:'+/-'},{id:'typ',l:'Typ'},{id:'notiz',l:'Notiz'}];document.getElementById('colTog').innerHTML=cols.map(c=>`<button class="${this.vis[c.id]?'active':''}" onclick="WK.vis['${c.id}']=!WK.vis['${c.id}'];WK.render()">${c.l}</button>`).join('')},
-  _scrollSync:null,
+  _scrollSync:null,_progScroll:false,
   scrollKW(kw){
-    const el=document.getElementById('kw'+kw),mc=document.getElementById('mainContent');
-    if(el&&mc){const stickyH=document.querySelector('.wsk');const off=stickyH?stickyH.offsetHeight+10:80;const top=el.offsetTop-mc.offsetTop-off;mc.scrollTo({top,behavior:'smooth'})}
-    this._updateTab(kw)
+    const el=document.getElementById('kw'+kw);
+    if(el){
+      this._progScroll=true;
+      el.scrollIntoView({behavior:'smooth',block:'start'});
+      setTimeout(()=>{this._progScroll=false},800)
+    }
+    this._setActiveTab(kw,true)
   },
-  _updateTab(kw){
+  _setActiveTab(kw,animate){
     document.querySelectorAll('#kwTabs .ti').forEach(t=>t.classList.remove('active'));
-    const tab=document.getElementById('kwT'+kw);if(tab){tab.classList.add('active');tab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}
+    const tab=document.getElementById('kwT'+kw);
+    if(tab){tab.classList.add('active');tab.scrollIntoView({behavior:animate?'smooth':'auto',block:'nearest',inline:'center'})}
   },
   initScrollSync(){
     const mc=document.getElementById('mainContent');if(!mc||this._scrollSync)return;
     this._scrollSync=true;
-    let ticking=false;
+    let timer=null;
     mc.addEventListener('scroll',()=>{
-      if(A.page!=='week'||ticking)return;
-      ticking=true;requestAnimationFrame(()=>{
-        const cards=document.querySelectorAll('.kwcard');const stickyH=document.querySelector('.wsk');
-        const off=(stickyH?stickyH.offsetHeight:80)+mc.getBoundingClientRect().top+20;
-        let closest=null,closestDist=Infinity;
-        cards.forEach(c=>{const r=c.getBoundingClientRect();const dist=Math.abs(r.top-off);if(dist<closestDist){closestDist=dist;closest=c}});
-        if(closest){const kw=parseInt(closest.id.replace('kw',''));if(!isNaN(kw))this._updateTab(kw)}
-        ticking=false
-      })
+      if(A.page!=='week'||this._progScroll)return;
+      if(timer)clearTimeout(timer);
+      timer=setTimeout(()=>{
+        const cards=document.querySelectorAll('.kwcard');
+        const stickyH=document.querySelector('.wsk');
+        const threshold=(stickyH?stickyH.offsetHeight:80)+mc.getBoundingClientRect().top+40;
+        let best=null,bestDist=Infinity;
+        cards.forEach(c=>{const t=c.getBoundingClientRect().top;const d=Math.abs(t-threshold);if(d<bestDist){bestDist=d;best=c}});
+        if(best){const kw=parseInt(best.id.replace('kw',''));if(!isNaN(kw))this._setActiveTab(kw,false)}
+      },80)
     })
   },
   openEdit(dk2){
@@ -919,7 +930,7 @@ document.getElementById('root').innerHTML=`
 <button class="ni" onclick="A.nav('week')" data-p="week"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span>Übersicht</span></button>
 <button class="ni" onclick="A.nav('export')" data-p="export"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export</span></button>
 </nav>
-<div class="zoom-ctrl"><button class="zoom-btn" onclick="A.zoom=Math.min(150,A.zoom+10);document.getElementById('mainContent').style.zoom=A.zoom+'%'">+</button><button class="zoom-btn" onclick="A.zoom=Math.max(50,A.zoom-10);document.getElementById('mainContent').style.zoom=A.zoom+'%'">−</button></div>
+<div class="zoom-ctrl"><button class="zoom-btn" onclick="A.zoom=Math.min(150,A.zoom+10);A.applyZoom()">+</button><button class="zoom-btn" onclick="A.zoom=Math.max(50,A.zoom-10);A.applyZoom()">−</button></div>
 </div>`}
 
 async function init(){
