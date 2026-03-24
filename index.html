@@ -149,7 +149,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .wt tr:hover td{background:rgba(255,255,255,.02)}
 .bdg{display:inline-block;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:500}
 .bdg-g{background:var(--green-bg);color:var(--green)}.bdg-r{background:var(--red-bg);color:var(--red)}.bdg-o{background:var(--orange-bg);color:var(--orange)}.bdg-b{background:var(--blue-glow);color:var(--blue)}.bdg-p{background:var(--purple-bg);color:var(--purple)}
-.kwcard{animation:fadeIn .3s ease both}
+.kwcard{animation:fadeIn .3s ease both;scroll-margin-top:140px}
 .kwcard.current-kw{animation:currentKW 3s ease-in-out infinite;border-radius:var(--rl)}
 
 /* Charts */
@@ -700,13 +700,10 @@ const WK={
   renderCols(){const cols=[{id:'tag',l:'Tag'},{id:'datum',l:'Datum'},{id:'zeit',l:'Zeit'},{id:'pause',l:'P.'},{id:'std',l:'Std'},{id:'diff',l:'+/-'},{id:'typ',l:'Typ'},{id:'notiz',l:'Notiz'}];document.getElementById('colTog').innerHTML=cols.map(c=>`<button class="${this.vis[c.id]?'active':''}" onclick="WK.vis['${c.id}']=!WK.vis['${c.id}'];WK.render()">${c.l}</button>`).join('')},
   _scrollSync:null,_progScroll:false,
   scrollKW(kw){
-    const el=document.getElementById('kw'+kw),mc=document.getElementById('mainContent');
-    if(el&&mc){
-      const stickyH=document.querySelector('.wsk');const off=stickyH?stickyH.offsetHeight+10:80;
-      const rect=el.getBoundingClientRect(),mcRect=mc.getBoundingClientRect();
-      const top=mc.scrollTop+(rect.top-mcRect.top)-off;
+    const el=document.getElementById('kw'+kw);
+    if(el){
       this._progScroll=true;
-      mc.scrollTo({top,behavior:'smooth'});
+      el.scrollIntoView({behavior:'smooth',block:'start'});
       setTimeout(()=>{this._progScroll=false},800)
     }
     this._setActiveTab(kw,true)
