@@ -368,7 +368,12 @@ const ST={
   clk:null,sp:null,
   startClock(){if(this.clk)clearInterval(this.clk);this.uc();this.clk=setInterval(()=>this.uc(),3e4)},
   uc(){const n=U.now();const c=document.getElementById('sClock'),d=document.getElementById('sDate');if(c)c.textContent=U.fT(n);if(d)d.textContent=U.wdL(n)+', '+U.fD(n);this._updSince()},
-  _updSince(){const ud=A.d(),el=document.getElementById('sSince');if(!el)return;if(!ud.currentStamp){el.textContent='';return}const diff=Date.now()-new Date(ud.currentStamp).getTime();const h=Math.floor(diff/36e5),m=Math.floor((diff%36e5)/6e4);el.textContent='seit '+h+'h '+U.S(m)+'min'},
+  _updSince(){const ud=A.d(),el=document.getElementById('sSince');if(!el)return;if(!ud.currentStamp){el.textContent='';return}const diff=Date.now()-new Date(ud.currentStamp).getTime();const h=Math.floor(diff/36e5),m=Math.floor((diff%36e5)/6e4);
+    const n=U.now(),dk=U.dk(n),ent=(ud.stamps&&ud.stamps[dk])||[];let worked=0;ent.forEach(e=>{worked+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});worked+=diff/6e4;
+    const target=A.expH(dk)*60,rem=target-worked;
+    let txt='seit '+h+'h '+U.S(m)+'min';
+    if(target>0){if(rem>0){const rh=Math.floor(rem/60),rm=Math.ceil(rem%60);txt+=' · noch '+rh+'h '+U.S(rm)+'min'}else{txt+=' · Soll erreicht ✓'}}
+    el.textContent=txt},
   updUI(){
     const ud=A.d(),btn=document.getElementById('stampBtn'),lbl=document.getElementById('sLbl'),st=document.getElementById('sStat'),ti=document.getElementById('sTi'),ca=document.getElementById('cancelA'),nb=document.getElementById('nachBtn');
     if(!btn)return;
