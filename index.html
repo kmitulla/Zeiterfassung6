@@ -322,7 +322,7 @@ const A={
     if(p==='stemp')ST.updPage();
     if(p==='cal'){CL.render();setTimeout(()=>CL.scrollToday(),200)}
     if(p==='dash')DA.render();
-    if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),500)}
+    if(p==='week'){WK.render();requestAnimationFrame(()=>setTimeout(()=>WK.scrollKW(U.getKW(U.now())),100))}
     if(p==='settings')SE.load();
     if(p==='export')EX.renderPage();
     if(p!=='week')document.getElementById('mainContent').scrollTop=0;
@@ -703,9 +703,15 @@ const WK={
   _scrollSync:null,_progScroll:false,
   scrollKW(kw){
     const el=document.getElementById('kw'+kw);
-    if(el){
+    const mc=document.getElementById('mainContent');
+    if(el&&mc){
       this._progScroll=true;
-      el.scrollIntoView({behavior:'smooth',block:'start'});
+      const stickyH=document.querySelector('.wsk');
+      const offset=stickyH?stickyH.offsetHeight+10:140;
+      const elRect=el.getBoundingClientRect();
+      const mcRect=mc.getBoundingClientRect();
+      const top=mc.scrollTop+(elRect.top-mcRect.top)-offset;
+      mc.scrollTo({top:Math.max(0,top),behavior:'smooth'});
       setTimeout(()=>{this._progScroll=false},800)
     }
     this._setActiveTab(kw,true)
@@ -910,7 +916,7 @@ document.getElementById('root').innerHTML=`
 <div class="pg active" id="pg_stemp"><div class="ss"><button class="sb si" id="stampBtn" onclick="ST.toggle()"><div class="shim"></div><span class="sc" id="sClock">--:--</span><span class="sd" id="sDate"></span><span class="sl" id="sLbl">Einstempeln</span><span class="sd" id="sSince" style="font-size:9px;margin-top:2px"></span></button><div class="sst" id="sStat"></div><div class="sti" id="sTi"></div></div>
 <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px"><button class="mb" onclick="ST.openManual()">${SVG.edit} Manuell eintragen</button><button class="nachb" id="nachBtn" onclick="ST.openNach()">Stempeln nachholen</button></div>
 <div class="cd" style="margin-top:16px"><div class="ct">Heute <span id="todayType" style="font-size:11px;font-weight:400;margin-left:6px"></span></div><div id="todayInfo" style="font-size:13px;color:var(--text2)"></div></div>
-<div class="cd"><div class="ct">Diese Woche</div><div id="weekInfo" style="font-size:13px;color:var(--text2)"></div></div>
+<div class="cd" onclick="A.weekY=U.now().getFullYear();A.nav('week')" style="cursor:pointer"><div class="ct">Diese Woche</div><div id="weekInfo" style="font-size:13px;color:var(--text2)"></div></div>
 <div id="cancelA" style="text-align:center;display:none;padding:16px 0"><button class="csb" onclick="ST.cancel()">Stempelvorgang abbrechen</button></div></div>
 
 <div class="pg" id="pg_cal"><div class="csk"><div class="ch"><div class="cn"><button onclick="A.calY--;CL.render()">${SVG.L}</button></div><h3 id="calYE"></h3><div class="cn"><button onclick="A.calY++;CL.render()">${SVG.R}</button></div></div><div id="calSt" class="sg" style="grid-template-columns:repeat(2,1fr);gap:5px"></div><div class="cleg" id="calLeg"></div></div><div id="calMos" style="margin-top:6px"></div></div>
