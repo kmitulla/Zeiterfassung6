@@ -267,6 +267,7 @@ const A={
   user:null,_d:{},_unsub:null,calY:new Date().getFullYear(),weekY:new Date().getFullYear(),page:'stemp',_zoom:{stemp:100,cal:100,dash:100,week:100,settings:100,export:100},
   get zoom(){return this._zoom[this.page]||100},
   set zoom(v){this._zoom[this.page]=v},
+  applyZoom(){const pg=document.getElementById('pg_'+this.page);if(pg)pg.style.zoom=this.zoom+'%'},
   d(){return this._d},
   tz(){return(this._d.settings&&this._d.settings.timezone)||'Europe/Berlin'},
   dH(){return((this._d.settings&&this._d.settings.weekHours)||40)/5},
@@ -325,7 +326,8 @@ const A={
     if(p==='settings')SE.load();
     if(p==='export')EX.renderPage();
     if(p!=='week')document.getElementById('mainContent').scrollTop=0;
-    document.getElementById('mainContent').style.zoom=(this._zoom[p]||100)+'%'
+    document.querySelectorAll('.pg').forEach(e=>e.style.zoom='');
+    const activePg=document.getElementById('pg_'+p);if(activePg)activePg.style.zoom=(this._zoom[p]||100)+'%'
   }
 };
 
@@ -931,7 +933,7 @@ document.getElementById('root').innerHTML=`
 <button class="ni" onclick="A.nav('week')" data-p="week"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span>Übersicht</span></button>
 <button class="ni" onclick="A.nav('export')" data-p="export"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export</span></button>
 </nav>
-<div class="zoom-ctrl"><button class="zoom-btn" onclick="A.zoom=Math.min(150,A.zoom+10);document.getElementById('mainContent').style.zoom=A.zoom+'%'">+</button><button class="zoom-btn" onclick="A.zoom=Math.max(50,A.zoom-10);document.getElementById('mainContent').style.zoom=A.zoom+'%'">−</button></div>
+<div class="zoom-ctrl"><button class="zoom-btn" onclick="A.zoom=Math.min(150,A.zoom+10);A.applyZoom()">+</button><button class="zoom-btn" onclick="A.zoom=Math.max(50,A.zoom-10);A.applyZoom()">−</button></div>
 </div>`}
 
 async function init(){
