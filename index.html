@@ -264,7 +264,9 @@ const TYPES=[
 ];
 
 const A={
-  user:null,_d:{},_unsub:null,calY:new Date().getFullYear(),weekY:new Date().getFullYear(),page:'stemp',zoom:100,
+  user:null,_d:{},_unsub:null,calY:new Date().getFullYear(),weekY:new Date().getFullYear(),page:'stemp',_zoom:{stemp:100,cal:100,dash:100,week:100,settings:100,export:100},
+  get zoom(){return this._zoom[this.page]||100},
+  set zoom(v){this._zoom[this.page]=v},
   d(){return this._d},
   tz(){return(this._d.settings&&this._d.settings.timezone)||'Europe/Berlin'},
   dH(){return((this._d.settings&&this._d.settings.weekHours)||40)/5},
@@ -322,7 +324,8 @@ const A={
     if(p==='week'){WK.render();setTimeout(()=>WK.scrollKW(U.getKW(U.now())),100)}
     if(p==='settings')SE.load();
     if(p==='export')EX.renderPage();
-    if(p!=='week')document.getElementById('mainContent').scrollTop=0
+    if(p!=='week')document.getElementById('mainContent').scrollTop=0;
+    document.getElementById('mainContent').style.zoom=(this._zoom[p]||100)+'%'
   }
 };
 
