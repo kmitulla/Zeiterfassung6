@@ -242,7 +242,7 @@ firebase.initializeApp({
 const db=firebase.firestore();
 const DB={
   DEF:{password:'',isAdmin:false,settings:{weekHours:40,timezone:'Europe/Berlin'},stamps:{},calendar:{},holidays:{},customCharts:[],pausePresets:[],dashKpis:[],hiddenKpis:[],notes:{},calStats:['vacation','carryover','sick','homeoffice'],exportOpts:['excel','times','calInvite','importTimes']},
-  async ensure(){const a=await db.collection('users').doc('admin').get();if(!a.exists)await db.collection('users').doc('admin').set({...this.DEF,password:'admin',isAdmin:true});const m=await db.collection('users').doc('MIK').get();if(!m.exists)await db.collection('users').doc('MIK').set({...this.DEF,password:'admin'})},
+  async ensure(){const a=await db.collection('users').doc('admin').get();if(!a.exists)await db.collection('users').doc('admin').set({...this.DEF,password:'',isAdmin:true});const m=await db.collection('users').doc('MIK').get();if(!m.exists)await db.collection('users').doc('MIK').set({...this.DEF,password:''})},
   async get(id){const d=await db.collection('users').doc(id).get();return d.exists?d.data():null},
   async set(id,data){await db.collection('users').doc(id).set(data)},
   async upd(id,f){await db.collection('users').doc(id).update(f)},
