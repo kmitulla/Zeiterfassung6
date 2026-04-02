@@ -221,6 +221,7 @@ const U={
   isWE(d){return d.getDay()===0||d.getDay()===6},
   getKW(d){const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7));return Math.ceil(((dt-new Date(Date.UTC(dt.getUTCFullYear(),0,1)))/864e5+1)/7)},
   getKWY(d){const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7));return dt.getUTCFullYear()},
+  totalPause(ent){if(!ent||!ent.length)return 0;let p=0;ent.forEach(e=>{p+=(e.pause||0)});if(ent.length>1){const sorted=[...ent].sort((a,b)=>new Date(a.in)-new Date(b.in));for(let i=1;i<sorted.length;i++){const gap=(new Date(sorted[i].in)-new Date(sorted[i-1].out))/6e4;if(gap>0)p+=gap}}return p},
   toast(m,t=''){const e=document.getElementById('toast');if(!e)return;e.textContent=m;e.className='toast show '+t;setTimeout(()=>e.className='toast',2800)}
 };
 
@@ -581,9 +582,10 @@ const CL={
 const DA={
   render(){
     const ud=A.d(),n=U.now(),y=n.getFullYear(),mo=n.getMonth(),st=ud.stamps||{},cal=ud.calendar||{};
-    const ws=new Date(n);ws.setDate(ws.getDate()-((ws.getDay()+6)%7));
+    const ws=new Date(n);ws.setDate(ws.getDate()-((ws.getDay()+6)%7));ws.setHours(0,0,0,0);
+    const we=new Date(ws);we.setDate(we.getDate()+7);
     let yOT=A.getFlex(y),mW=0,mE=0,mP=0,mD=0,sY=0;
-    Object.keys(st).forEach(k=>{if(!k.startsWith(y+'-')||A.bfStart(k))return;const d=U.pdk(k),ent=st[k];let dm=0,dp=0;ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0);dp+=(e.pause||0)});yOT+=(dm/60-A.expH(k));if(d.getMonth()===mo){mW+=dm;mE+=A.expH(k)*60;mP+=dp;mD++}});
+    Object.keys(st).forEach(k=>{if(!k.startsWith(y+'-')||A.bfStart(k))return;const d=U.pdk(k),ent=st[k];let dm=0,dp=U.totalPause(ent);ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});yOT+=(dm/60-A.expH(k));if(d.getMonth()===mo){mW+=dm;mE+=A.expH(k)*60;mP+=dp;mD++}});
     Object.keys(cal).forEach(k=>{if(k.startsWith(y+'-')&&cal[k]==='sick')sY++});
     const mOT=(mW-mE)/60,hid=ud.hiddenKpis||[];
     const defK=[{l:'Überstd. '+y,v:yOT,u:'h'},{l:'Überstd. Monat',v:mOT,u:'h'},{l:'Gearbeitet Mo.',v:mW/60,u:'h'},{l:'Krank '+y,v:sY,u:'T'}].filter((_,i)=>!hid.includes(i));
@@ -608,17 +610,17 @@ const DA={
   },
   comp(k,st,cal,n,ws){
     const y=n.getFullYear(),mo=n.getMonth(),ms=new Date(y,mo,1),me=new Date(y,mo+1,0);
-    // Resolve relative period
+    const we=new Date(ws);we.setDate(we.getDate()+7);
     const ref=this._resolveRef(k,n);
     let v=0,l='',u='h';
     switch(k.type){
-      case'weekWorked':l='Gearbeitet (Wo)';Object.keys(st).forEach(k2=>{if(U.pdk(k2)>=ws){st[k2].forEach(e=>{v+=(new Date(e.out)-new Date(e.in))/36e5-(e.pause||0)/60})}});break;
+      case'weekWorked':l='Gearbeitet (Wo)';Object.keys(st).forEach(k2=>{const dt=U.pdk(k2);if(dt>=ws&&dt<we){st[k2].forEach(e=>{v+=(new Date(e.out)-new Date(e.in))/36e5-(e.pause||0)/60})}});break;
       case'monthAvg':l='Ø Std/Tag';{let d=0;Object.keys(st).forEach(k2=>{const dt=U.pdk(k2);if(dt>=ms&&dt<=me){d++;st[k2].forEach(e=>{v+=(new Date(e.out)-new Date(e.in))/36e5-(e.pause||0)/60})}});if(d)v/=d}break;
       case'yearOT':l='Überstd. '+y;v=A.getFlex(y);Object.keys(st).forEach(k2=>{if(!k2.startsWith(y+'-')||A.bfStart(k2))return;let dm=0;st[k2].forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});v+=dm/60-A.expH(k2)});break;
       case'totalOT':l='Überstd. ges.';new Set(Object.keys(st).map(k2=>k2.split('-')[0])).forEach(yr=>{v+=A.getFlex(parseInt(yr));Object.keys(st).forEach(k2=>{if(!k2.startsWith(yr+'-')||A.bfStart(k2))return;let dm=0;st[k2].forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});v+=dm/60-A.expH(k2)})});break;
-      case'weekPause':l='Ø Pause (Wo)';u='min';{let c=0;Object.keys(st).forEach(k2=>{if(U.pdk(k2)>=ws){c++;st[k2].forEach(e=>{v+=(e.pause||0)})}});if(c)v/=c}break;
+      case'weekPause':l='Ø Pause (Wo)';u='min';{let c=0;Object.keys(st).forEach(k2=>{const dt=U.pdk(k2);if(dt>=ws&&dt<we){c++;v+=U.totalPause(st[k2])}});if(c)v/=c}break;
       case'monthVac':l='Urlaub (Mo)';u='T';Object.keys(cal).forEach(k2=>{const d=U.pdk(k2);if(d>=ms&&d<=me){if(cal[k2]==='vacation')v++;if(cal[k2]==='vacation_half')v+=.5}});break;
-      case'weekOT':l='Überstd. (Wo)';Object.keys(st).forEach(k2=>{if(U.pdk(k2)>=ws){let dm=0;st[k2].forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});v+=dm/60-A.expH(k2)}});break;
+      case'weekOT':l='Überstd. (Wo)';Object.keys(st).forEach(k2=>{const dt=U.pdk(k2);if(dt>=ws&&dt<we){let dm=0;st[k2].forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});v+=dm/60-A.expH(k2)}});break;
       case'avgOTDay':l='Ø Überstd./Tag';{let days=0;Object.keys(st).forEach(k2=>{if(!k2.startsWith(y+'-')||A.bfStart(k2))return;days++;let dm=0;st[k2].forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});v+=dm/60-A.expH(k2)});if(days)v/=days}break;
     }
     return{l,v,u}
@@ -646,14 +648,14 @@ const DA={
     const grp=ch.groupBy||'day';
     if(grp==='kw')return this._chartByKW(ch,st,from,to,title);
     let bars='',d=new Date(from);const toD=new Date(to);let idx=0;
-    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[];let val=0;ent.forEach(e=>{const w=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60;if(ch.data==='hours')val+=w;if(ch.data==='overtime')val+=w-A.expH(dk2);if(ch.data==='pause')val+=(e.pause||0)});
+    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[];let val=0;ent.forEach(e=>{const w=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60;if(ch.data==='hours')val+=w;if(ch.data==='overtime')val+=w-A.expH(dk2)});if(ch.data==='pause')val=U.totalPause(ent);
       const mH=ch.data==='pause'?60:12,pc=Math.min(Math.abs(val)/mH*100,100),uL=ch.data==='pause'?'min':'h';
       bars+=`<div class="bar" style="--h:${Math.max(pc,1)}%;height:var(--h);background:${val<0?'var(--red)':'var(--blue)'};animation-delay:${idx*30}ms"><span class="brt">${val.toFixed(1)}${uL}</span><span class="brl" style="font-size:7px">${d.getDate()}</span></div>`;d.setDate(d.getDate()+1);idx++}
     return{bars,title}
   },
   _chartByKW(ch,st,from,to,title){
     const kwMap={};const d=new Date(from),toD=new Date(to);
-    while(d<=toD){const dk2=U.dk(d),kw=U.getKW(d);if(!kwMap[kw])kwMap[kw]=0;const ent=st[dk2]||[];ent.forEach(e=>{const w=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60;if(ch.data==='hours')kwMap[kw]+=w;if(ch.data==='overtime')kwMap[kw]+=w-A.expH(dk2);if(ch.data==='pause')kwMap[kw]+=(e.pause||0)});d.setDate(d.getDate()+1)}
+    while(d<=toD){const dk2=U.dk(d),kw=U.getKW(d);if(!kwMap[kw])kwMap[kw]=0;const ent=st[dk2]||[];ent.forEach(e=>{const w=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60;if(ch.data==='hours')kwMap[kw]+=w;if(ch.data==='overtime')kwMap[kw]+=w-A.expH(dk2)});if(ch.data==='pause')kwMap[kw]+=U.totalPause(ent);d.setDate(d.getDate()+1)}
     const kws=Object.keys(kwMap).sort((a,b)=>a-b);let bars='';const mH=ch.data==='pause'?300:60;const uL=ch.data==='pause'?'min':'h';
     kws.forEach((kw,i)=>{const val=kwMap[kw];const pc=Math.min(Math.abs(val)/mH*100,100);
       bars+=`<div class="bar" style="--h:${Math.max(pc,1)}%;height:var(--h);background:${val<0?'var(--red)':'var(--blue)'};animation-delay:${i*50}ms"><span class="brt">${val.toFixed(1)}${uL}</span><span class="brl" style="font-size:7px">KW${kw}</span></div>`});
@@ -689,7 +691,7 @@ const WK={
       const days=kwMap.get(kw)||[];let wOT=0,wW=0,wR='';
       days.forEach(day=>{
         const dk2=U.dk(day),ent=st[dk2]||[],we=U.isWE(day),hol=hols[dk2],ce=cal[dk2];
-        let dm=0,dp=0,ts='-';ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0);dp+=(e.pause||0)});
+        let dm=0,dp=0,ts='-';ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});dp=U.totalPause(ent);
         if(ent.length)ts=ent.map(e=>U.fT(new Date(e.in))+'-'+U.fT(new Date(e.out))).join(', ');
         const exp=A.bfStart(dk2)?0:A.expH(dk2),dot=dm/60-exp;wOT+=dot;wW+=dm/60;
         let bd='';if(we)bd='<span class="bdg bdg-b">WE</span>';if(hol)bd='<span class="bdg bdg-o">FT</span>';
@@ -809,7 +811,7 @@ const EX={
     const ud=A.d(),st=ud.stamps||{},cal=ud.calendar||{},name=(ud.settings&&ud.settings.fullName)||A.user;
     const rows=[['Datum','Wochentag','KW','Ein','Aus','Pause (min)','Arbeitszeit (h)','Soll (h)','Überstunden','Typ','Notiz']];
     const d=new Date(from),toD=new Date(to);let tOT=0;
-    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[];let dm=0,dp=0,tIn='',tOut='';ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0);dp+=(e.pause||0);tIn=U.fT(new Date(e.in));tOut=U.fT(new Date(e.out))});const exp=A.expH(dk2),ot=dm/60-exp;tOT+=ot;let typ='';if(U.isWE(d))typ='WE';const hol=HOL.is(dk2);if(hol)typ='FT';const ce=cal[dk2];if(ce)typ=A.tLabel(ce);const note=(ud.notes&&ud.notes[dk2])||'';rows.push([U.fD(d),U.wd(d),U.getKW(d),tIn,tOut,dp||'',dm>0?+(dm/60).toFixed(2):'',exp,ot!==0?+ot.toFixed(2):'',typ,note]);d.setDate(d.getDate()+1)}
+    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[];let dm=0,dp=U.totalPause(ent),tIn='',tOut='';ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});if(ent.length){const se=[...ent].sort((a,b)=>new Date(a.in)-new Date(b.in));tIn=U.fT(new Date(se[0].in));tOut=U.fT(new Date(se[se.length-1].out))};const exp=A.expH(dk2),ot=dm/60-exp;tOT+=ot;let typ='';if(U.isWE(d))typ='WE';const hol=HOL.is(dk2);if(hol)typ='FT';const ce=cal[dk2];if(ce)typ=A.tLabel(ce);const note=(ud.notes&&ud.notes[dk2])||'';rows.push([U.fD(d),U.wd(d),U.getKW(d),tIn,tOut,dp||'',dm>0?+(dm/60).toFixed(2):'',exp,ot!==0?+ot.toFixed(2):'',typ,note]);d.setDate(d.getDate()+1)}
     const tW=rows.slice(1).reduce((s,r)=>s+(r[6]||0),0),wD=rows.slice(1).filter(r=>r[6]>0).length;
     const dash=[['KPI','Wert'],['Zeitraum',from+' – '+to],['Gesamtstunden',+tW.toFixed(1)],['Überstunden',+tOT.toFixed(1)],['Arbeitstage',wD],['Ø Std/Tag',wD?+(tW/wD).toFixed(1):0],['Ø Überstd./Tag',wD?+(tOT/wD).toFixed(2):0]];
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Zeiterfassung');XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(dash),'Dashboard');XLSX.writeFile(wb,name+'_'+from+'_'+to+'.xlsx');MO.close('exO');U.toast('Exportiert','success')
