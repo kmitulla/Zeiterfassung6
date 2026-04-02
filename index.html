@@ -648,14 +648,14 @@ const DA={
     const grp=ch.groupBy||'day';
     if(grp==='kw')return this._chartByKW(ch,st,from,to,title);
     let bars='',d=new Date(from);const toD=new Date(to);let idx=0;
-    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[];let val=0;ent.forEach(e=>{const w=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60;if(ch.data==='hours')val+=w;if(ch.data==='overtime')val+=w-A.expH(dk2)});if(ch.data==='pause')val=U.totalPause(ent);
+    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[];let val=0;ent.forEach(e=>{val+=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60});if(ch.data==='overtime')val-=A.expH(dk2);if(ch.data==='pause'){val=U.totalPause(ent)}
       const mH=ch.data==='pause'?60:12,pc=Math.min(Math.abs(val)/mH*100,100),uL=ch.data==='pause'?'min':'h';
       bars+=`<div class="bar" style="--h:${Math.max(pc,1)}%;height:var(--h);background:${val<0?'var(--red)':'var(--blue)'};animation-delay:${idx*30}ms"><span class="brt">${val.toFixed(1)}${uL}</span><span class="brl" style="font-size:7px">${d.getDate()}</span></div>`;d.setDate(d.getDate()+1);idx++}
     return{bars,title}
   },
   _chartByKW(ch,st,from,to,title){
     const kwMap={};const d=new Date(from),toD=new Date(to);
-    while(d<=toD){const dk2=U.dk(d),kw=U.getKW(d);if(!kwMap[kw])kwMap[kw]=0;const ent=st[dk2]||[];ent.forEach(e=>{const w=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60;if(ch.data==='hours')kwMap[kw]+=w;if(ch.data==='overtime')kwMap[kw]+=w-A.expH(dk2)});if(ch.data==='pause')kwMap[kw]+=U.totalPause(ent);d.setDate(d.getDate()+1)}
+    while(d<=toD){const dk2=U.dk(d),kw=U.getKW(d);if(!kwMap[kw])kwMap[kw]=0;const ent=st[dk2]||[];let dh=0;ent.forEach(e=>{dh+=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60});if(ch.data==='hours')kwMap[kw]+=dh;if(ch.data==='overtime')kwMap[kw]+=dh-A.expH(dk2);if(ch.data==='pause')kwMap[kw]+=U.totalPause(ent);d.setDate(d.getDate()+1)}
     const kws=Object.keys(kwMap).sort((a,b)=>a-b);let bars='';const mH=ch.data==='pause'?300:60;const uL=ch.data==='pause'?'min':'h';
     kws.forEach((kw,i)=>{const val=kwMap[kw];const pc=Math.min(Math.abs(val)/mH*100,100);
       bars+=`<div class="bar" style="--h:${Math.max(pc,1)}%;height:var(--h);background:${val<0?'var(--red)':'var(--blue)'};animation-delay:${i*50}ms"><span class="brt">${val.toFixed(1)}${uL}</span><span class="brl" style="font-size:7px">KW${kw}</span></div>`});
