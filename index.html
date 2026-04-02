@@ -222,6 +222,10 @@ const U={
   getKW(d){const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7));return Math.ceil(((dt-new Date(Date.UTC(dt.getUTCFullYear(),0,1)))/864e5+1)/7)},
   getKWY(d){const dt=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));dt.setUTCDate(dt.getUTCDate()+4-(dt.getUTCDay()||7));return dt.getUTCFullYear()},
   totalPause(ent){if(!ent||!ent.length)return 0;let p=0;ent.forEach(e=>{p+=(e.pause||0)});if(ent.length>1){const sorted=[...ent].sort((a,b)=>new Date(a.in)-new Date(b.in));for(let i=1;i<sorted.length;i++){const gap=(new Date(sorted[i].in)-new Date(sorted[i-1].out))/6e4;if(gap>0)p+=gap}}return p},
+  fromTz(d,t,tz){const dt=new Date(d+'T'+t+':00Z');const u=dt.toLocaleString('en-US',{timeZone:'UTC'});const z=dt.toLocaleString('en-US',{timeZone:tz});return new Date(dt.getTime()-(new Date(z).getTime()-new Date(u).getTime()))},
+  fTz(d){if(typeof d==='string')d=new Date(d);const s=d.toLocaleTimeString('de-DE',{timeZone:A.tz(),hour:'2-digit',minute:'2-digit',hour12:false});return s==='24:00'?'00:00':s},
+  dkTz(d){if(typeof d==='string')return d;return new Intl.DateTimeFormat('en-CA',{timeZone:A.tz()}).format(d)},
+  tzOpts(id,def){const s=document.getElementById(id);if(!s)return;let t;try{t=Intl.supportedValuesOf('timeZone')}catch(e){t=['Africa/Cairo','Africa/Johannesburg','Africa/Lagos','America/Anchorage','America/Argentina/Buenos_Aires','America/Bogota','America/Chicago','America/Denver','America/Los_Angeles','America/Mexico_City','America/New_York','America/Sao_Paulo','America/Toronto','Asia/Bangkok','Asia/Colombo','Asia/Dubai','Asia/Hong_Kong','Asia/Istanbul','Asia/Jakarta','Asia/Karachi','Asia/Kolkata','Asia/Kuala_Lumpur','Asia/Manila','Asia/Seoul','Asia/Shanghai','Asia/Singapore','Asia/Taipei','Asia/Tehran','Asia/Tokyo','Atlantic/Reykjavik','Australia/Melbourne','Australia/Perth','Australia/Sydney','Europe/Amsterdam','Europe/Athens','Europe/Berlin','Europe/Brussels','Europe/Budapest','Europe/Dublin','Europe/Helsinki','Europe/Lisbon','Europe/London','Europe/Madrid','Europe/Moscow','Europe/Oslo','Europe/Paris','Europe/Prague','Europe/Rome','Europe/Stockholm','Europe/Vienna','Europe/Warsaw','Europe/Zurich','Pacific/Auckland','Pacific/Honolulu']}s.innerHTML=t.map(z=>`<option value="${z}"${z===def?' selected':''}>${z.replace(/_/g,' ')}</option>`).join('')},
   toast(m,t=''){const e=document.getElementById('toast');if(!e)return;e.textContent=m;e.className='toast show '+t;setTimeout(()=>e.className='toast',2800)}
 };
 
@@ -401,8 +405,8 @@ const ST={
   // Nachholen
   openNach(){
     const ud=A.d(),n=U.now();
+    U.tzOpts('nachTz',A.tz());
     if(ud.currentStamp){
-      // Ausstempeln nachholen
       document.getElementById('nachTitle').textContent='Ausstempeln nachholen';
       document.getElementById('nachDate').value=U.dk(n);
       document.getElementById('nachTime').value=U.fT(n);
@@ -419,12 +423,12 @@ const ST={
     const mode=document.getElementById('nachMode').value;
     const d=document.getElementById('nachDate').value;
     const t=document.getElementById('nachTime').value;
+    const tz=document.getElementById('nachTz').value;
     if(!d||!t){U.toast('Datum und Uhrzeit eingeben','error');return}
-    const dt=new Date(d+'T'+t+':00');
+    const dt=U.fromTz(d,t,tz);
     if(mode==='in'){
       await A.sf('currentStamp',dt.toISOString());U.toast('Eingestempelt!','success')
     }else{
-      // Treat as clock-out from currentStamp
       const ud=A.d();if(!ud.currentStamp){U.toast('Nicht eingestempelt','error');return}
       this._multiOut=dt;this._multiIn=new Date(ud.currentStamp);
       MO.close('nachO');
@@ -458,7 +462,7 @@ const ST={
     let h='<div style="font-size:13px;color:var(--text2);margin-bottom:10px">Mehrere Tage – Pause pro Tag:</div>';
     days.forEach((dk,i)=>{
       const dd=U.pdk(dk);let from='00:00',to='24:00';
-      if(i===0)from=U.fT(inT);if(i===days.length-1)to=U.fT(outT);
+      if(i===0)from=U.fTz(inT);if(i===days.length-1)to=U.fTz(outT);
       h+=`<div style="background:var(--bg3);padding:8px 10px;border-radius:var(--rs);margin-bottom:5px;display:flex;align-items:center;justify-content:space-between"><div><b>${U.wd(dd)}</b> ${U.fD(dd)}<br><span style="font-size:10px;color:var(--text2)">${from}–${to}</span></div><div style="display:flex;align-items:center;gap:4px"><input type="number" id="mp_${i}" value="0" min="0" style="width:60px;text-align:center;padding:6px" inputmode="numeric"><span style="font-size:11px;color:var(--text2)">min</span></div></div>`
     });
     mp.innerHTML=h;MO.open('pauseO')
@@ -487,19 +491,21 @@ const ST={
   async addPreset(){const v=prompt('Voreinstellung (Min):');if(v&&!isNaN(parseInt(v))){const ud=A.d(),p=ud.pausePresets||[];p.push(parseInt(v));await A.sf('pausePresets',[...new Set(p)])}},
 
   openManual(){
-    const n=U.now();document.getElementById('mDate').value=U.dk(n);document.getElementById('mIn').value='08:00';document.getElementById('mOut').value='17:00';document.getElementById('mPause').value='';
+    const n=U.now(),tz=A.tz();document.getElementById('mDateIn').value=U.dk(n);document.getElementById('mDateOut').value=U.dk(n);document.getElementById('mIn').value='08:00';document.getElementById('mOut').value='17:00';document.getElementById('mPause').value='';
+    U.tzOpts('mTzIn',tz);U.tzOpts('mTzOut',tz);
     const ud=A.d(),pr=[0,10,15,20,30,45,60],up=ud.pausePresets||[],all=[...new Set([...pr,...up])].sort((a,b)=>a-b);
     document.getElementById('mPC').innerHTML=all.map(p=>`<button class="pi" onclick="this.parentElement.querySelectorAll('.pi').forEach(c=>c.classList.remove('sel'));this.classList.add('sel');document.getElementById('mPause').value='${p}'">${p}m</button>`).join('');
     MO.open('manO')
   },
   async saveManual(){
-    const d=document.getElementById('mDate').value,iT=document.getElementById('mIn').value,oT=document.getElementById('mOut').value,p=parseInt(document.getElementById('mPause').value)||0;
-    if(!d||!iT||!oT){U.toast('Alle Felder!','error');return}
-    const ud=A.d(),ent=(ud.stamps&&ud.stamps[d])||[];
-    const nI=new Date(d+'T'+iT+':00').getTime(),nO=new Date(d+'T'+oT+':00').getTime();
-    for(const e of ent){if(nI<new Date(e.out).getTime()&&nO>new Date(e.in).getTime()){U.toast('Zeitüberschneidung!','error');return}}
-    const stamps=ud.stamps||{};if(!stamps[d])stamps[d]=[];
-    stamps[d].push({in:new Date(d+'T'+iT+':00').toISOString(),out:new Date(d+'T'+oT+':00').toISOString(),pause:p});
+    const dIn=document.getElementById('mDateIn').value,iT=document.getElementById('mIn').value,dOut=document.getElementById('mDateOut').value,oT=document.getElementById('mOut').value,tzIn=document.getElementById('mTzIn').value,tzOut=document.getElementById('mTzOut').value,p=parseInt(document.getElementById('mPause').value)||0;
+    if(!dIn||!iT||!dOut||!oT){U.toast('Alle Felder!','error');return}
+    const inUtc=U.fromTz(dIn,iT,tzIn),outUtc=U.fromTz(dOut,oT,tzOut);
+    if(outUtc<=inUtc){U.toast('Aus muss nach Ein liegen!','error');return}
+    const dk=U.dkTz(inUtc),ud=A.d(),ent=(ud.stamps&&ud.stamps[dk])||[];
+    for(const e of ent){if(inUtc.getTime()<new Date(e.out).getTime()&&outUtc.getTime()>new Date(e.in).getTime()){U.toast('Zeitüberschneidung!','error');return}}
+    const stamps=ud.stamps||{};if(!stamps[dk])stamps[dk]=[];
+    stamps[dk].push({in:inUtc.toISOString(),out:outUtc.toISOString(),pause:p});
     await A.sf('stamps',stamps);MO.close('manO');U.toast('Gespeichert','success')
   },
 
@@ -509,7 +515,7 @@ const ST={
     let ts='Werktag';if(U.isWE(n))ts='Wochenende';const hol=HOL.is(dk);if(hol)ts='Feiertag: '+hol;const ce=A.getCE(dk);if(ce)ts=A.tLabel(ce);
     tT.textContent='– '+ts;
     if(!ent.length){tI.innerHTML='Keine Einträge heute.'}
-    else{let tot=0,h='';ent.forEach(e=>{const iD=new Date(e.in),oD=new Date(e.out),w=(oD-iD)/6e4-(e.pause||0);tot+=w;h+=`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px"><span>${U.fT(iD)}–${U.fT(oD)}</span><span style="color:var(--text2)">P:${e.pause||0}m</span><span>${(w/60).toFixed(1)}h</span></div>`});
+    else{let tot=0,h='';ent.forEach(e=>{const iD=new Date(e.in),oD=new Date(e.out),w=(oD-iD)/6e4-(e.pause||0);tot+=w;h+=`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12px"><span>${U.fTz(iD)}–${U.fTz(oD)}</span><span style="color:var(--text2)">P:${e.pause||0}m</span><span>${(w/60).toFixed(1)}h</span></div>`});
       const ot=tot/60-A.expH(dk);h+=`<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between"><span>Ges: <b>${(tot/60).toFixed(1)}h</b></span><span class="bdg ${ot>=0?'bdg-g':'bdg-r'}">${ot>=0?'+':''}${ot.toFixed(1)}h</span></div>`;tI.innerHTML=h}
     const wI=document.getElementById('weekInfo');if(!wI)return;
     const ws=new Date(n);ws.setDate(ws.getDate()-((ws.getDay()+6)%7));let wt=0,we=0;
@@ -692,7 +698,7 @@ const WK={
       days.forEach(day=>{
         const dk2=U.dk(day),ent=st[dk2]||[],we=U.isWE(day),hol=hols[dk2],ce=cal[dk2];
         let dm=0,dp=0,ts='-';ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});dp=U.totalPause(ent);
-        if(ent.length)ts=ent.map(e=>U.fT(new Date(e.in))+'-'+U.fT(new Date(e.out))).join(', ');
+        if(ent.length)ts=ent.map(e=>U.fTz(new Date(e.in))+'-'+U.fTz(new Date(e.out))).join(', ');
         const exp=A.bfStart(dk2)?0:A.expH(dk2),dot=dm/60-exp;wOT+=dot;wW+=dm/60;
         let bd='';if(we)bd='<span class="bdg bdg-b">WE</span>';if(hol)bd='<span class="bdg bdg-o">FT</span>';
         if(ce){const t=TYPES.find(x=>x.id===ce);bd=`<span class="bdg" style="background:${t?t.c+'20':'var(--blue-glow)'};color:${t?t.c:'var(--blue)'}">${t?t.l.substring(0,4):ce.substring(0,4)}</span>`}
@@ -721,7 +727,7 @@ const WK={
   openEdit(dk2){
     this.editDk=dk2;const ud=A.d(),ent=(ud.stamps&&ud.stamps[dk2])||[],note=(ud.notes&&ud.notes[dk2])||'';
     let h=`<div style="font-size:14px;color:var(--text2);margin-bottom:10px">${U.fD(U.pdk(dk2))} (${U.wdL(U.pdk(dk2))})</div><div id="eEnts">`;
-    ent.forEach((e,i)=>{h+=`<div id="eE${i}" style="background:var(--bg3);padding:10px;border-radius:var(--rs);margin-bottom:6px"><div class="fr"><div class="fg" style="margin-bottom:6px"><label class="fl">Ein</label><input type="time" id="eI${i}" value="${U.fT(new Date(e.in))}"></div><div class="fg" style="margin-bottom:6px"><label class="fl">Aus</label><input type="time" id="eO${i}" value="${U.fT(new Date(e.out))}"></div><div class="fg" style="margin-bottom:6px"><label class="fl">P.</label><input type="number" id="eP${i}" value="${e.pause||0}" min="0" inputmode="numeric" style="width:60px"></div></div><button class="btn bs" style="color:var(--red);font-size:11px" onclick="document.getElementById('eE${i}').remove()">Löschen</button></div>`});
+    ent.forEach((e,i)=>{h+=`<div id="eE${i}" style="background:var(--bg3);padding:10px;border-radius:var(--rs);margin-bottom:6px"><div class="fr"><div class="fg" style="margin-bottom:6px"><label class="fl">Ein</label><input type="time" id="eI${i}" value="${U.fTz(new Date(e.in))}"></div><div class="fg" style="margin-bottom:6px"><label class="fl">Aus</label><input type="time" id="eO${i}" value="${U.fTz(new Date(e.out))}"></div><div class="fg" style="margin-bottom:6px"><label class="fl">P.</label><input type="number" id="eP${i}" value="${e.pause||0}" min="0" inputmode="numeric" style="width:60px"></div></div><button class="btn bs" style="color:var(--red);font-size:11px" onclick="document.getElementById('eE${i}').remove()">Löschen</button></div>`});
     h+=`</div><button class="btn bs bg" onclick="WK.addE()" style="margin-bottom:10px">+ Eintrag</button>`;
     h+=`<div class="fg"><label class="fl">Notiz</label><textarea id="eNote" rows="2" style="font-size:13px">${note}</textarea></div><input type="hidden" id="eCnt" value="${ent.length}">`;
     document.getElementById('edCont').innerHTML=h;MO.open('edO')
@@ -729,7 +735,7 @@ const WK={
   addE(){const cnt=parseInt(document.getElementById('eCnt').value);document.getElementById('eCnt').value=cnt+1;const c=document.getElementById('eEnts'),d=document.createElement('div');d.id='eE'+cnt;d.style.cssText='background:var(--bg3);padding:10px;border-radius:var(--rs);margin-bottom:6px';d.innerHTML=`<div class="fr"><div class="fg" style="margin-bottom:6px"><label class="fl">Ein</label><input type="time" id="eI${cnt}" value="08:00"></div><div class="fg" style="margin-bottom:6px"><label class="fl">Aus</label><input type="time" id="eO${cnt}" value="17:00"></div><div class="fg" style="margin-bottom:6px"><label class="fl">P.</label><input type="number" id="eP${cnt}" value="0" min="0" inputmode="numeric" style="width:60px"></div></div><button class="btn bs" style="color:var(--red);font-size:11px" onclick="document.getElementById('eE${cnt}').remove()">Löschen</button>`;c.appendChild(d)},
   async saveEdit(){
     const dk2=this.editDk,cnt=parseInt(document.getElementById('eCnt').value),ud=A.d(),stamps=ud.stamps||{},entries=[];
-    for(let i=0;i<cnt;i++){const iE=document.getElementById('eI'+i),oE=document.getElementById('eO'+i),pE=document.getElementById('eP'+i);if(!iE||!oE)continue;entries.push({in:new Date(dk2+'T'+iE.value+':00').toISOString(),out:new Date(dk2+'T'+oE.value+':00').toISOString(),pause:parseInt(pE.value)||0})}
+    for(let i=0;i<cnt;i++){const iE=document.getElementById('eI'+i),oE=document.getElementById('eO'+i),pE=document.getElementById('eP'+i);if(!iE||!oE)continue;entries.push({in:U.fromTz(dk2,iE.value,A.tz()).toISOString(),out:U.fromTz(dk2,oE.value,A.tz()).toISOString(),pause:parseInt(pE.value)||0})}
     for(let i=0;i<entries.length;i++)for(let j=i+1;j<entries.length;j++){const a=new Date(entries[i].in).getTime(),b=new Date(entries[i].out).getTime(),c=new Date(entries[j].in).getTime(),d=new Date(entries[j].out).getTime();if(a<d&&b>c){U.toast('Überschneidung!','error');return}}
     stamps[dk2]=entries;const notes=ud.notes||{};notes[dk2]=document.getElementById('eNote').value;
     await db.collection('users').doc(A.user).update({stamps,notes});MO.close('edO');U.toast('Gespeichert','success')
@@ -744,7 +750,7 @@ const SE={
     document.getElementById('setUN').textContent='Angemeldet als: '+A.user;
     document.getElementById('setName').value=s.fullName||'';
     document.getElementById('setHrs').value=s.weekHours||40;
-    document.getElementById('setTz').value=s.timezone||'Europe/Berlin';
+    U.tzOpts('setTz',s.timezone||'Europe/Berlin');
     document.getElementById('setSD').value=s.startDate||'';
     document.getElementById('setMT').value=s.emailTimes||'';
     document.getElementById('setMC').value=s.emailCal||'';
@@ -811,7 +817,7 @@ const EX={
     const ud=A.d(),st=ud.stamps||{},cal=ud.calendar||{},name=(ud.settings&&ud.settings.fullName)||A.user;
     const rows=[['Datum','Wochentag','KW','Ein','Aus','Pause (min)','Arbeitszeit (h)','Soll (h)','Überstunden','Typ','Notiz']];
     const d=new Date(from),toD=new Date(to);let tOT=0;
-    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[];let dm=0,dp=U.totalPause(ent),tIn='',tOut='';ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});if(ent.length){const se=[...ent].sort((a,b)=>new Date(a.in)-new Date(b.in));tIn=U.fT(new Date(se[0].in));tOut=U.fT(new Date(se[se.length-1].out))};const exp=A.expH(dk2),ot=dm/60-exp;tOT+=ot;let typ='';if(U.isWE(d))typ='WE';const hol=HOL.is(dk2);if(hol)typ='FT';const ce=cal[dk2];if(ce)typ=A.tLabel(ce);const note=(ud.notes&&ud.notes[dk2])||'';rows.push([U.fD(d),U.wd(d),U.getKW(d),tIn,tOut,dp||'',dm>0?+(dm/60).toFixed(2):'',exp,ot!==0?+ot.toFixed(2):'',typ,note]);d.setDate(d.getDate()+1)}
+    while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[];let dm=0,dp=U.totalPause(ent),tIn='',tOut='';ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});if(ent.length){const se=[...ent].sort((a,b)=>new Date(a.in)-new Date(b.in));tIn=U.fTz(new Date(se[0].in));tOut=U.fTz(new Date(se[se.length-1].out))};const exp=A.expH(dk2),ot=dm/60-exp;tOT+=ot;let typ='';if(U.isWE(d))typ='WE';const hol=HOL.is(dk2);if(hol)typ='FT';const ce=cal[dk2];if(ce)typ=A.tLabel(ce);const note=(ud.notes&&ud.notes[dk2])||'';rows.push([U.fD(d),U.wd(d),U.getKW(d),tIn,tOut,dp||'',dm>0?+(dm/60).toFixed(2):'',exp,ot!==0?+ot.toFixed(2):'',typ,note]);d.setDate(d.getDate()+1)}
     const tW=rows.slice(1).reduce((s,r)=>s+(r[6]||0),0),wD=rows.slice(1).filter(r=>r[6]>0).length;
     const dash=[['KPI','Wert'],['Zeitraum',from+' – '+to],['Gesamtstunden',+tW.toFixed(1)],['Überstunden',+tOT.toFixed(1)],['Arbeitstage',wD],['Ø Std/Tag',wD?+(tW/wD).toFixed(1):0],['Ø Überstd./Tag',wD?+(tOT/wD).toFixed(2):0]];
     const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Zeiterfassung');XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(dash),'Dashboard');XLSX.writeFile(wb,name+'_'+from+'_'+to+'.xlsx');MO.close('exO');U.toast('Exportiert','success')
@@ -825,7 +831,7 @@ const EX={
       const hasData=ent.length||ce||hol;
       if(hasData){
         if(ent.length){
-          const times=ent.map(e=>U.fT(new Date(e.in))+' – '+U.fT(new Date(e.out)));
+          const times=ent.map(e=>U.fTz(new Date(e.in))+' – '+U.fTz(new Date(e.out)));
           text+=U.fD(d)+' ('+U.wd(d)+'): '+times.join(', ')+'\n';
           let totalP=0,totalW=0;ent.forEach(e=>{const p=e.pause||0;totalP+=p;totalW+=((new Date(e.out)-new Date(e.in))/6e4-p)/60});
           if(totalP>0)text+='P: '+totalP+'min\n';
@@ -880,8 +886,8 @@ document.getElementById('root').innerHTML=`
 <div id="admO" class="mo" onclick="if(event.target===this)MO.close('admO')"><div class="ml" style="max-height:90vh"><div class="mh"></div><div class="mt">Admin</div><div id="admList"></div><div style="margin-top:14px;border-top:1px solid rgba(255,255,255,.06);padding-top:14px"><div class="mt" style="font-size:15px">Backup</div><div style="display:flex;gap:8px"><button class="btn bs bg" onclick="ADM.expBk()" style="flex:1">Export</button><button class="btn bs bg" onclick="document.getElementById('bkF').click()" style="flex:1">Import</button><input type="file" id="bkF" accept=".json" style="display:none" onchange="ADM.impBk(event)"></div></div><div class="ma"><button class="btn bg" onclick="MO.close('admO')">Schließen</button></div></div></div>
 <div id="pwO" class="mo" onclick="if(event.target===this)MO.close('pwO')"><div class="ml"><div class="mh"></div><div class="mt">Passwort ändern</div><div class="fg"><label class="fl">User</label><input type="text" id="pwUser" autocomplete="username"></div><div class="fg"><label class="fl">Altes PW</label><input type="password" id="pwOld"></div><div class="fg"><label class="fl">Neues PW</label><input type="password" id="pwNew"></div><div class="ma"><button class="btn bg" onclick="MO.close('pwO')">Abbrechen</button><button class="btn bp" onclick="AUTH.changePw()">Ändern</button></div></div></div>
 <div id="pauseO" class="mo" onclick="if(event.target===this)MO.close('pauseO')"><div class="ml"><div class="mh"></div><div class="mt">Pause</div><div id="singlePA"><p style="font-size:13px;color:var(--text2);margin-bottom:12px">Wie lange war deine Pause?</p><div class="pc" id="pChips"></div><div class="fg" style="margin-top:12px"><label class="fl">Eigener Wert (Min)</label><input type="number" id="cPause" min="0" placeholder="z.B. 35" inputmode="numeric"></div></div><div id="multiPA" style="display:none"></div><div class="ma"><button class="btn bg" onclick="MO.close('pauseO')">Abbrechen</button><button class="btn bp" onclick="ST.confirmPause()">OK</button></div><div style="margin-top:10px;text-align:center"><button style="font-size:11px;color:var(--text2)" onclick="ST.addPreset()">+ Voreinstellung</button></div></div></div>
-<div id="manO" class="mo" onclick="if(event.target===this)MO.close('manO')"><div class="ml"><div class="mh"></div><div class="mt">Manuell stempeln</div><div class="fg"><label class="fl">Datum</label><input type="date" id="mDate"></div><div class="fr"><div class="fg"><label class="fl">Ein</label><input type="time" id="mIn"></div><div class="fg"><label class="fl">Aus</label><input type="time" id="mOut"></div></div><div class="fg"><label class="fl">Pause</label><div class="pc" id="mPC"></div><input type="number" id="mPause" min="0" placeholder="Min" style="margin-top:6px" inputmode="numeric"></div><div class="ma"><button class="btn bg" onclick="MO.close('manO')">Abbrechen</button><button class="btn bp" onclick="ST.saveManual()">Speichern</button></div></div></div>
-<div id="nachO" class="mo" onclick="if(event.target===this)MO.close('nachO')"><div class="ml"><div class="mh"></div><div class="mt" id="nachTitle">Stempeln nachholen</div><input type="hidden" id="nachMode" value="in"><div class="fg"><label class="fl">Datum</label><input type="date" id="nachDate"></div><div class="fg"><label class="fl">Uhrzeit</label><input type="time" id="nachTime"></div><div class="ma"><button class="btn bg" onclick="MO.close('nachO')">Abbrechen</button><button class="btn bp" onclick="ST.saveNach()">OK</button></div></div></div>
+<div id="manO" class="mo" onclick="if(event.target===this)MO.close('manO')"><div class="ml"><div class="mh"></div><div class="mt">Manuell stempeln</div><div style="font-size:12px;font-weight:600;color:var(--blue);margin:10px 0 4px">Einstempeln</div><div class="fr"><div class="fg"><label class="fl">Datum</label><input type="date" id="mDateIn"></div><div class="fg"><label class="fl">Zeit</label><input type="time" id="mIn"></div></div><div class="fg"><label class="fl">Zeitzone Ein</label><select id="mTzIn" style="width:100%"></select></div><div style="font-size:12px;font-weight:600;color:var(--blue);margin:10px 0 4px">Ausstempeln</div><div class="fr"><div class="fg"><label class="fl">Datum</label><input type="date" id="mDateOut"></div><div class="fg"><label class="fl">Zeit</label><input type="time" id="mOut"></div></div><div class="fg"><label class="fl">Zeitzone Aus</label><select id="mTzOut" style="width:100%"></select></div><div class="fg"><label class="fl">Pause</label><div class="pc" id="mPC"></div><input type="number" id="mPause" min="0" placeholder="Min" style="margin-top:6px" inputmode="numeric"></div><div class="ma"><button class="btn bg" onclick="MO.close('manO')">Abbrechen</button><button class="btn bp" onclick="ST.saveManual()">Speichern</button></div></div></div>
+<div id="nachO" class="mo" onclick="if(event.target===this)MO.close('nachO')"><div class="ml"><div class="mh"></div><div class="mt" id="nachTitle">Stempeln nachholen</div><input type="hidden" id="nachMode" value="in"><div class="fg"><label class="fl">Datum</label><input type="date" id="nachDate"></div><div class="fg"><label class="fl">Uhrzeit</label><input type="time" id="nachTime"></div><div class="fg"><label class="fl">Zeitzone</label><select id="nachTz" style="width:100%"></select></div><div class="ma"><button class="btn bg" onclick="MO.close('nachO')">Abbrechen</button><button class="btn bp" onclick="ST.saveNach()">OK</button></div></div></div>
 <div id="holO" class="mo" onclick="if(event.target===this)MO.close('holO')"><div class="ml"><div class="mh"></div><div class="mt">Feiertage importieren</div><div class="fg"><label class="fl">Jahr</label><input type="number" id="holYear" min="2020" max="2040" inputmode="numeric"></div><div class="fg"><label class="fl">TT.MM.JJJJ Name</label><textarea id="holText" rows="5" placeholder="01.01.2025 Neujahr" style="font-size:13px"></textarea></div><div class="fg"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="holOW" style="width:auto;accent-color:var(--blue)"> Überschreiben</label></div><div class="ma"><button class="btn bg" onclick="MO.close('holO')">Abbrechen</button><button class="btn bp" onclick="SE.importHol()">Import</button></div></div></div>
 <div id="exO" class="mo" onclick="if(event.target===this)MO.close('exO')"><div class="ml"><div class="mh"></div><div class="mt" id="exTitle">Export</div><div id="exCont"></div><div class="ma"><button class="btn bg" onclick="MO.close('exO')">Abbrechen</button><button class="btn bp" id="exBtn" onclick="EX.doExport()">Export</button></div></div></div>
 <div id="chO" class="mo" onclick="if(event.target===this)MO.close('chO')"><div class="ml"><div class="mh"></div><div class="mt">Diagramm</div><div class="fg"><label class="fl">Titel</label><input type="text" id="ccTitle" placeholder="Titel"></div><div class="fg"><label class="fl">Daten</label><select id="ccData"><option value="hours">Stunden</option><option value="overtime">Überstd.</option><option value="pause">Pause</option></select></div><div class="fg"><label class="fl">Gruppierung</label><select id="ccGroup"><option value="day">Tage</option><option value="kw">KWs</option></select></div><div class="fg"><label class="fl">Zeitraum</label><select id="ccPer" onchange="document.getElementById('ccCR').style.display=this.value==='custom'?'block':'none'"><option value="thisWeek">Woche</option><option value="lastWeek">Vorwoche</option><option value="thisMonth">Monat</option><option value="lastMonth">Vormonat</option><option value="thisYear">Jahr</option><option value="lastYear">Vorjahr</option><option value="custom">Bereich</option></select></div><div id="ccCR" style="display:none"><div class="fr"><div class="fg"><label class="fl">Von</label><input type="date" id="ccFrom"></div><div class="fg"><label class="fl">Bis</label><input type="date" id="ccTo"></div></div></div><div class="ma"><button class="btn bg" onclick="MO.close('chO')">Abbrechen</button><button class="btn bp" onclick="DA.saveCh()">Erstellen</button></div></div></div>
@@ -914,7 +920,7 @@ document.getElementById('root').innerHTML=`
 <div class="sit"><span class="sil">Urlaubstage</span><div class="siv"><input type="number" id="setVac" min="0" inputmode="numeric"></div></div>
 <div class="sit"><span class="sil">Resturlaub VJ</span><div class="siv"><input type="number" id="setCO" min="0" step="0.5" inputmode="decimal"></div></div>
 <div class="sit"><span class="sil">Flexzeitstd.</span><div class="siv"><input type="number" id="setFlex" step="0.25" inputmode="decimal"></div></div></div>
-<div class="sse"><div class="sst2">Zeitzone</div><div class="sit"><span class="sil">Zeitzone</span><div class="siv"><select id="setTz" style="width:150px"><option value="Europe/Berlin">Berlin</option><option value="Europe/London">London</option><option value="Europe/Paris">Paris</option><option value="America/New_York">New York</option></select></div></div></div>
+<div class="sse"><div class="sst2">Zeitzone</div><div class="sit"><span class="sil">Zeitzone</span><div class="siv"><select id="setTz" style="width:100%"></select></div></div></div>
 <div class="sse"><div class="sst2">E-Mail</div><div class="sit"><span class="sil">Zeiten Export</span><div class="siv"><input type="email" id="setMT" placeholder="email" style="width:150px"></div></div><div class="sit"><span class="sil">Kalender</span><div class="siv"><input type="email" id="setMC" placeholder="email" style="width:150px"></div></div></div>
 <div class="sse"><div class="sst2">Export-Optionen (Reiter)</div>
 <div style="display:flex;flex-direction:column;gap:6px">
