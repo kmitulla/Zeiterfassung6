@@ -153,7 +153,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .kwcard.current-kw{animation:currentKW 3s ease-in-out infinite;border-radius:var(--rl)}
 
 /* Charts */
-.chb{background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:12px;overflow:hidden}
+.chb{background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:12px;overflow:visible}
 .cht{font-size:13px;font-weight:500;margin-bottom:10px}
 .bc{display:flex;align-items:flex-end;gap:3px;height:120px;padding-top:8px}
 .bar{flex:1;border-radius:3px 3px 0 0;position:relative;min-width:0;transform-origin:bottom;animation:chartBar .7s cubic-bezier(.34,1.56,.64,1) both;cursor:pointer;transition:opacity .15s}
@@ -161,6 +161,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 .brl{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--text2);white-space:nowrap}
 .brt{position:absolute;top:-20px;left:50%;transform:translateX(-50%);background:var(--bg2);color:var(--text);font-size:10px;padding:2px 6px;border-radius:4px;white-space:nowrap;opacity:0;transition:opacity .2s;border:1px solid rgba(255,255,255,.1);z-index:5;pointer-events:none}
 .bar:hover .brt{opacity:1}
+.bc.show-vals{padding-top:22px}
+.bc.show-vals .brt{opacity:1;font-size:8px;padding:1px 3px}
+.bc.show-vals .bar:hover .brt{font-size:10px;padding:2px 6px}
+.ch-sum{display:flex;gap:10px;font-size:11px;color:var(--text2);margin-bottom:4px;flex-wrap:wrap}
+.ch-sum span{background:var(--bg2);padding:2px 8px;border-radius:var(--rs);font-variant-numeric:tabular-nums}
 
 /* Login */
 .lp{display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;background:var(--bg);width:100%}
@@ -636,7 +641,10 @@ const DA={
   async hideDef(i){const h=A.d().hiddenKpis||[];if(!h.includes(i))h.push(i);await A.sf('hiddenKpis',h)},
   renderCustom(){
     const ch=A.d().customCharts||[],c=document.getElementById('custCh');if(!ch.length){c.innerHTML='';return}
-    c.innerHTML=ch.map((chart,i)=>{const{bars,title}=this.chartData(chart);return`<div class="chb" style="animation:fadeIn .4s ease ${.2+i*.08}s both"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="cht" style="margin:0">${title}</div><button style="font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;padding:4px" onclick="DA.delCh(${i})">✕</button></div><div class="bc" style="padding-bottom:18px">${bars}</div></div>`}).join('')
+    c.innerHTML=ch.map((chart,i)=>{const{bars,title,total,avg,unit}=this.chartData(chart);
+      let sumHtml='';
+      if(chart.showTotal||chart.showAvg){sumHtml='<div class="ch-sum">';if(chart.showTotal)sumHtml+=`<span>Σ ${total.toFixed(1)}${unit}</span>`;if(chart.showAvg)sumHtml+=`<span>Ø ${avg.toFixed(1)}${unit}</span>`;sumHtml+='</div>'}
+      return`<div class="chb" style="animation:fadeIn .4s ease ${.2+i*.08}s both"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="cht" style="margin:0">${title}</div><button style="font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;padding:4px" onclick="DA.delCh(${i})">✕</button></div>${sumHtml}<div class="bc${chart.showValues?' show-vals':''}" style="padding-bottom:18px">${bars}</div></div>`}).join('')
   },
   chartData(ch){
     const st=A.d().stamps||{};let from,to,title=ch.title||'Diagramm';const n=U.now();
@@ -653,23 +661,26 @@ const DA={
     if(!from||!to)return{bars:'',title};
     const grp=ch.groupBy||'day';
     if(grp==='kw')return this._chartByKW(ch,st,from,to,title);
-    let bars='',d=new Date(from);const toD=new Date(to);let idx=0;
+    let bars='',d=new Date(from);const toD=new Date(to);let idx=0,total=0,cnt=0;
     while(d<=toD){const dk2=U.dk(d),ent=st[dk2]||[];let val=0;ent.forEach(e=>{val+=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60});if(ch.data==='overtime')val-=A.expH(dk2);if(ch.data==='pause'){val=U.totalPause(ent)}
+      total+=val;cnt++;
       const mH=ch.data==='pause'?60:12,pc=Math.min(Math.abs(val)/mH*100,100),uL=ch.data==='pause'?'min':'h';
       bars+=`<div class="bar" style="--h:${Math.max(pc,1)}%;height:var(--h);background:${val<0?'var(--red)':'var(--blue)'};animation-delay:${idx*30}ms"><span class="brt">${val.toFixed(1)}${uL}</span><span class="brl" style="font-size:7px">${d.getDate()}</span></div>`;d.setDate(d.getDate()+1);idx++}
-    return{bars,title}
+    const uL=ch.data==='pause'?'min':'h';
+    return{bars,title,total,avg:cnt?total/cnt:0,unit:uL}
   },
   _chartByKW(ch,st,from,to,title){
     const kwMap={};const d=new Date(from),toD=new Date(to);
     while(d<=toD){const dk2=U.dk(d),kw=U.getKW(d);if(!kwMap[kw])kwMap[kw]=0;const ent=st[dk2]||[];let dh=0;ent.forEach(e=>{dh+=((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))/60});if(ch.data==='hours')kwMap[kw]+=dh;if(ch.data==='overtime')kwMap[kw]+=dh-A.expH(dk2);if(ch.data==='pause')kwMap[kw]+=U.totalPause(ent);d.setDate(d.getDate()+1)}
     const kws=Object.keys(kwMap).sort((a,b)=>a-b);let bars='';const mH=ch.data==='pause'?300:60;const uL=ch.data==='pause'?'min':'h';
-    kws.forEach((kw,i)=>{const val=kwMap[kw];const pc=Math.min(Math.abs(val)/mH*100,100);
+    let total=0;
+    kws.forEach((kw,i)=>{const val=kwMap[kw];total+=val;const pc=Math.min(Math.abs(val)/mH*100,100);
       bars+=`<div class="bar" style="--h:${Math.max(pc,1)}%;height:var(--h);background:${val<0?'var(--red)':'var(--blue)'};animation-delay:${i*50}ms"><span class="brt">${val.toFixed(1)}${uL}</span><span class="brl" style="font-size:7px">KW${kw}</span></div>`});
-    return{bars,title}
+    return{bars,title,total,avg:kws.length?total/kws.length:0,unit:uL}
   },
   async delCh(i){const c=A.d().customCharts||[];c.splice(i,1);await A.sf('customCharts',c)},
   async saveCh(){
-    const c={title:document.getElementById('ccTitle').value||'Diagramm',data:document.getElementById('ccData').value,period:document.getElementById('ccPer').value,groupBy:document.getElementById('ccGroup').value,from:document.getElementById('ccFrom')?.value,to:document.getElementById('ccTo')?.value};
+    const c={title:document.getElementById('ccTitle').value||'Diagramm',data:document.getElementById('ccData').value,period:document.getElementById('ccPer').value,groupBy:document.getElementById('ccGroup').value,from:document.getElementById('ccFrom')?.value,to:document.getElementById('ccTo')?.value,showValues:document.getElementById('ccShowVals').checked,showTotal:document.getElementById('ccShowTotal').checked,showAvg:document.getElementById('ccShowAvg').checked};
     const ch=A.d().customCharts||[];ch.push(c);await A.sf('customCharts',ch);MO.close('chO');U.toast('Erstellt','success')
   },
   async saveKpi(){const k=A.d().dashKpis||[];k.push({type:document.getElementById('kpiType').value});await A.sf('dashKpis',k);MO.close('kpiO');U.toast('Hinzugefügt','success')},
@@ -890,7 +901,7 @@ document.getElementById('root').innerHTML=`
 <div id="nachO" class="mo" onclick="if(event.target===this)MO.close('nachO')"><div class="ml"><div class="mh"></div><div class="mt" id="nachTitle">Stempeln nachholen</div><input type="hidden" id="nachMode" value="in"><div class="fg"><label class="fl">Datum</label><input type="date" id="nachDate"></div><div class="fg"><label class="fl">Uhrzeit</label><input type="time" id="nachTime"></div><div class="fg"><label class="fl">Zeitzone</label><select id="nachTz" style="width:100%"></select></div><div class="ma"><button class="btn bg" onclick="MO.close('nachO')">Abbrechen</button><button class="btn bp" onclick="ST.saveNach()">OK</button></div></div></div>
 <div id="holO" class="mo" onclick="if(event.target===this)MO.close('holO')"><div class="ml"><div class="mh"></div><div class="mt">Feiertage importieren</div><div class="fg"><label class="fl">Jahr</label><input type="number" id="holYear" min="2020" max="2040" inputmode="numeric"></div><div class="fg"><label class="fl">TT.MM.JJJJ Name</label><textarea id="holText" rows="5" placeholder="01.01.2025 Neujahr" style="font-size:13px"></textarea></div><div class="fg"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="holOW" style="width:auto;accent-color:var(--blue)"> Überschreiben</label></div><div class="ma"><button class="btn bg" onclick="MO.close('holO')">Abbrechen</button><button class="btn bp" onclick="SE.importHol()">Import</button></div></div></div>
 <div id="exO" class="mo" onclick="if(event.target===this)MO.close('exO')"><div class="ml"><div class="mh"></div><div class="mt" id="exTitle">Export</div><div id="exCont"></div><div class="ma"><button class="btn bg" onclick="MO.close('exO')">Abbrechen</button><button class="btn bp" id="exBtn" onclick="EX.doExport()">Export</button></div></div></div>
-<div id="chO" class="mo" onclick="if(event.target===this)MO.close('chO')"><div class="ml"><div class="mh"></div><div class="mt">Diagramm</div><div class="fg"><label class="fl">Titel</label><input type="text" id="ccTitle" placeholder="Titel"></div><div class="fg"><label class="fl">Daten</label><select id="ccData"><option value="hours">Stunden</option><option value="overtime">Überstd.</option><option value="pause">Pause</option></select></div><div class="fg"><label class="fl">Gruppierung</label><select id="ccGroup"><option value="day">Tage</option><option value="kw">KWs</option></select></div><div class="fg"><label class="fl">Zeitraum</label><select id="ccPer" onchange="document.getElementById('ccCR').style.display=this.value==='custom'?'block':'none'"><option value="thisWeek">Woche</option><option value="lastWeek">Vorwoche</option><option value="thisMonth">Monat</option><option value="lastMonth">Vormonat</option><option value="thisYear">Jahr</option><option value="lastYear">Vorjahr</option><option value="custom">Bereich</option></select></div><div id="ccCR" style="display:none"><div class="fr"><div class="fg"><label class="fl">Von</label><input type="date" id="ccFrom"></div><div class="fg"><label class="fl">Bis</label><input type="date" id="ccTo"></div></div></div><div class="ma"><button class="btn bg" onclick="MO.close('chO')">Abbrechen</button><button class="btn bp" onclick="DA.saveCh()">Erstellen</button></div></div></div>
+<div id="chO" class="mo" onclick="if(event.target===this)MO.close('chO')"><div class="ml"><div class="mh"></div><div class="mt">Diagramm</div><div class="fg"><label class="fl">Titel</label><input type="text" id="ccTitle" placeholder="Titel"></div><div class="fg"><label class="fl">Daten</label><select id="ccData"><option value="hours">Stunden</option><option value="overtime">Überstd.</option><option value="pause">Pause</option></select></div><div class="fg"><label class="fl">Gruppierung</label><select id="ccGroup"><option value="day">Tage</option><option value="kw">KWs</option></select></div><div class="fg"><label class="fl">Zeitraum</label><select id="ccPer" onchange="document.getElementById('ccCR').style.display=this.value==='custom'?'block':'none'"><option value="thisWeek">Woche</option><option value="lastWeek">Vorwoche</option><option value="thisMonth">Monat</option><option value="lastMonth">Vormonat</option><option value="thisYear">Jahr</option><option value="lastYear">Vorjahr</option><option value="custom">Bereich</option></select></div><div id="ccCR" style="display:none"><div class="fr"><div class="fg"><label class="fl">Von</label><input type="date" id="ccFrom"></div><div class="fg"><label class="fl">Bis</label><input type="date" id="ccTo"></div></div></div><div class="fg"><label class="fl">Anzeige</label><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px"><label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="ccShowVals"> Werte</label><label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="ccShowTotal"> Summe</label><label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="ccShowAvg"> Durchschnitt</label></div></div><div class="ma"><button class="btn bg" onclick="MO.close('chO')">Abbrechen</button><button class="btn bp" onclick="DA.saveCh()">Erstellen</button></div></div></div>
 <div id="edO" class="mo" onclick="if(event.target===this)MO.close('edO')"><div class="ml"><div class="mh"></div><div class="mt">Eintrag</div><div id="edCont"></div><div class="ma"><button class="btn bg" onclick="MO.close('edO')">Abbrechen</button><button class="btn bp" onclick="WK.saveEdit()">Speichern</button></div></div></div>
 <div id="kpiO" class="mo" onclick="if(event.target===this)MO.close('kpiO')"><div class="ml"><div class="mh"></div><div class="mt">KPI hinzufügen</div><div class="fg"><label class="fl">Typ</label><select id="kpiType"><option value="weekWorked">Gearbeitet (Wo)</option><option value="monthAvg">Ø Std/Tag</option><option value="yearOT">Überstd. Jahr</option><option value="totalOT">Überstd. gesamt</option><option value="weekPause">Ø Pause (Wo)</option><option value="monthVac">Urlaub (Mo)</option><option value="weekOT">Überstd. (Wo)</option><option value="avgOTDay">Ø Überstd./Tag</option></select></div><div class="ma"><button class="btn bg" onclick="MO.close('kpiO')">Abbrechen</button><button class="btn bp" onclick="DA.saveKpi()">OK</button></div></div></div>
 <div id="calEO" class="mo" onclick="if(event.target===this)MO.close('calEO')"><div class="ml"><div class="mh"></div><div class="mt">Termin erstellen</div><div class="fr"><div class="fg"><label class="fl">Von</label><input type="date" id="ciFrom"></div><div class="fg"><label class="fl">Bis</label><input type="date" id="ciTo"></div></div><div class="ma"><button class="btn bg" onclick="MO.close('calEO')">Abbrechen</button><button class="btn bp" onclick="EX.doCalInv()">Termin</button></div></div></div>
