@@ -658,7 +658,7 @@ const DA={
         case'lastYear':from=(y-1)+'-01-01';to=(y-1)+'-12-31';title+=' ('+(y-1)+')';break;
       }
     }else{from=ch.from;to=ch.to}
-    if(!from||!to)return{bars:'',title};
+    if(!from||!to)return{bars:'',title,total:0,avg:0,unit:'h'};
     const grp=ch.groupBy||'day';
     if(grp==='kw')return this._chartByKW(ch,st,from,to,title);
     let bars='',d=new Date(from);const toD=new Date(to);let idx=0,total=0,cnt=0;
