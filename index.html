@@ -26,6 +26,7 @@
 --purple:#b197fc;--purple-bg:rgba(177,151,252,.13);
 --yellow:#ffd43b;--yellow-bg:rgba(255,212,59,.13);
 --pink:#f783ac;--teal:#3bc9db;
+--pulse:#5aa2ff;--pulse-glow:rgba(90,162,255,.4);
 --radius:16px;--rs:12px;--rl:24px;
 --shadow:0 8px 32px rgba(0,0,0,.35);
 --blur:blur(28px) saturate(180%);
@@ -56,12 +57,32 @@ input[type=file]{color:var(--text2)}
 @keyframes clockedPulse{0%,100%{border-color:var(--red);box-shadow:0 0 18px rgba(255,107,107,0.14)}50%{border-color:rgba(255,107,107,0.4);box-shadow:0 0 44px rgba(255,107,107,0.2)}}
 @keyframes chartBar{from{transform:scaleY(0)}to{transform:scaleY(1)}}
 @keyframes donutDraw{from{stroke-dasharray:0 100}to{stroke-dasharray:var(--val) 100}}
-@keyframes currentKW{0%,100%{box-shadow:0 0 0 1.5px var(--blue)}50%{box-shadow:0 0 16px 2px rgba(90,162,255,0.35)}}
+@keyframes currentKW{0%,100%{box-shadow:0 0 0 1.5px var(--pulse)}50%{box-shadow:0 0 18px 3px var(--pulse-glow)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes wobble{0%{transform:scale(1)}25%{transform:scale(1.08) rotate(2deg)}50%{transform:scale(1.08) rotate(-2deg)}75%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes splashIn{0%{opacity:0;transform:scale(.55)}55%{opacity:1;transform:scale(1.07)}100%{opacity:1;transform:scale(1)}}
+@keyframes splashGlow{0%{opacity:0;transform:scale(.4)}60%{opacity:1}100%{opacity:.55;transform:scale(1)}}
+@keyframes splashOut{to{opacity:0;visibility:hidden}}
+@keyframes splashWord{0%,45%{opacity:0;transform:translateY(8px)}70%{opacity:1;transform:translateY(0)}100%{opacity:1;transform:translateY(0)}}
+@keyframes ringDraw{from{stroke-dashoffset:760}to{stroke-dashoffset:0}}
+
+/* Launch splash */
+#splash{position:fixed;inset:0;z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:
+radial-gradient(60% 45% at 50% 34%,rgba(61,126,240,.28),transparent 62%),
+radial-gradient(50% 40% at 82% 78%,rgba(177,151,252,.16),transparent 60%),
+#05060c;animation:splashOut .55s ease 1.1s forwards}
+#splash.gone{display:none}
+.splash-logo{position:relative;width:128px;height:128px;animation:splashIn 1s cubic-bezier(.2,.85,.25,1) both}
+.splash-logo::before{content:'';position:absolute;inset:-30%;border-radius:50%;background:radial-gradient(circle,rgba(90,162,255,.5),transparent 68%);filter:blur(14px);z-index:-1;animation:splashGlow 1.1s ease both}
+.splash-logo svg{width:100%;height:100%;filter:drop-shadow(0 12px 32px rgba(20,50,140,.55))}
+.splash-logo .ring{stroke-dasharray:760;animation:ringDraw 1.1s cubic-bezier(.4,0,.2,1) .15s both}
+.splash-word{font-size:15px;font-weight:600;letter-spacing:4px;color:var(--text2);text-transform:uppercase;animation:splashWord 1.4s ease both}
 
 #root{height:100%;display:flex;flex-direction:column}
 .hdr{background:rgba(13,15,26,.6);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-bottom:1px solid var(--bdr);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:100;padding-top:max(12px,env(safe-area-inset-top))}
+.hdr .brand{display:flex;align-items:center;gap:11px}
+.logo-mark{width:38px;height:38px;flex-shrink:0;border-radius:11px;overflow:hidden;box-shadow:0 4px 14px rgba(20,50,140,.4)}
+.logo-mark svg{display:block;width:100%;height:100%}
 .hdr h1{font-size:16px;font-weight:600;letter-spacing:.3px}
 .hdr .ub{font-size:12px;color:var(--text2)}
 .ha{display:flex;gap:10px;align-items:center}
@@ -74,6 +95,7 @@ input[type=file]{color:var(--text2)}
 .pt{font-size:26px;font-weight:700;letter-spacing:-.5px;margin-bottom:18px}
 
 /* Floating glass tab bar */
+.navfade{position:fixed;left:0;right:0;bottom:0;height:calc(104px + env(safe-area-inset-bottom));z-index:99;pointer-events:none;background:linear-gradient(to top,var(--bg) 22%,rgba(5,6,12,.85) 55%,transparent)}
 .bn{position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom));background:rgba(16,19,32,.62);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--bdr2);border-radius:32px;display:flex;z-index:100;padding:6px;gap:2px;box-shadow:0 16px 48px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.09)}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;font-size:10px;font-weight:500;color:var(--text2);gap:3px;transition:all .3s ease;border-radius:26px;position:relative;min-width:0}
 .ni:active{transform:scale(.94)}
@@ -136,14 +158,17 @@ input[type=file]{color:var(--text2)}
 .cn svg{width:16px;height:16px;stroke:var(--text);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #calMos{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
 #calMos .cd{margin-bottom:0}
-.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cg{display:grid;grid-template-columns:26px repeat(7,1fr);gap:4px;align-items:center}
+.cwh{height:1px}
+.cwk{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:var(--text3);font-variant-numeric:tabular-nums}
+.cwk.cur{color:var(--pulse);font-weight:700}
 .cdh{text-align:center;font-size:10px;color:var(--text3);padding:4px 0 6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .cdy{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;border-radius:12px;position:relative;transition:all .2s ease;cursor:pointer;font-variant-numeric:tabular-nums}
 .cdy:hover{background:var(--glass2)}
 .cdy:active{transform:scale(.9)}
 .cdy.we{color:var(--text3)}
 .cdy.hol{color:var(--orange);font-weight:600;opacity:1}
-.cdy.today{box-shadow:inset 0 0 0 2px var(--blue);font-weight:700}
+.cdy.today{box-shadow:inset 0 0 0 2px var(--pulse);font-weight:700}
 .cdy.stpd::after{content:'';position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
 .cdy.vacation{background:var(--blue);color:white;box-shadow:0 2px 10px rgba(90,162,255,.35)}.cdy.vacation-half{background:linear-gradient(135deg,var(--blue) 50%,var(--glass2) 50%);color:white}
 .cdy.sick{background:var(--red);color:white;box-shadow:0 2px 10px rgba(255,107,107,.3)}.cdy.homeoffice{background:var(--purple);color:white;box-shadow:0 2px 10px rgba(177,151,252,.3)}
@@ -207,6 +232,8 @@ input[type=file]{color:var(--text2)}
 /* Login */
 .lp{display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;width:100%}
 .lc{width:100%;max-width:380px;text-align:center;animation:slideUp .5s ease both;background:linear-gradient(180deg,var(--glass2),var(--glass));border:1px solid var(--bdr2);border-radius:28px;padding:36px 26px 30px;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:0 24px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1)}
+.login-logo{width:76px;height:76px;margin:0 auto 18px;border-radius:20px;overflow:hidden;box-shadow:0 12px 32px rgba(20,50,140,.45)}
+.login-logo svg{display:block;width:100%;height:100%}
 .ltl{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
 .lsb{font-size:14px;color:var(--text2);margin-bottom:28px}
 .lf{text-align:left}.lf .fg{margin-bottom:12px}.lf input{padding:14px 16px;font-size:15px}
@@ -357,7 +384,14 @@ const A={
     if(this._unsub)this._unsub();
     this._unsub=DB.listen(this.user,data=>{this._d=data;this.updUI()})
   },
+  applyPulse(){
+    const hex=(this._d.settings&&this._d.settings.pulseColor)||'#5aa2ff';const m=/^#?([0-9a-f]{6})$/i.exec(hex.trim());
+    const rs=document.documentElement.style;if(!m){rs.setProperty('--pulse','#5aa2ff');rs.setProperty('--pulse-glow','rgba(90,162,255,.4)');return}
+    const h=m[1],r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+    rs.setProperty('--pulse','#'+h);rs.setProperty('--pulse-glow',`rgba(${r},${g},${b},.4)`)
+  },
   updUI(){
+    this.applyPulse();
     const n=(this._d.settings&&this._d.settings.fullName)||this.user;
     document.getElementById('headerUser').textContent=n;
     ST.updUI();
@@ -584,16 +618,21 @@ const CL={
     for(let m=0;m<12;m++){const div=document.createElement('div');div.className='cd';div.id='calM'+m;div.style.animationDelay=m*20+'ms';if(isCurrentYear&&m===curMonth)div.style.animation='currentKW 3s ease-in-out infinite';div.innerHTML=`<div class="ct">${mn[m]}</div>`+this.rMo(A.calY,m,curKW);c.appendChild(div)}
   },
   rMo(y,mo,curKW){
-    const f=new Date(y,mo,1),la=new Date(y,mo+1,0),sd=(f.getDay()+6)%7,td=U.dk(U.now()),hols=HOL.get(y),ud=A.d();
-    let h='<div class="cg">';['Mo','Di','Mi','Do','Fr','Sa','So'].forEach(d=>{h+=`<div class="cdh">${d}</div>`});
-    for(let i=0;i<sd;i++)h+='<div class="cdy em"></div>';
-    for(let d=1;d<=la.getDate();d++){
-      const dt=new Date(y,mo,d),k=U.dk(dt),we=U.isWE(dt),hol=hols[k],ce=A.getCE(k),isT=k===td,hs=A.hasS(k);
-      const kw=U.getKW(dt),isCurrentKW=kw===curKW&&y===U.now().getFullYear();
-      let cl='cdy';if(we)cl+=' we';if(hol)cl+=' hol';if(isT)cl+=' today';if(hs)cl+=' stpd';
-      if(ce)cl+=' '+ce.replace('_','-');
-      let kwl='';if((d+sd-1)%7===0||d===1)kwl=`<span style="position:absolute;top:2px;left:3px;font-size:7px;color:var(--text2);opacity:.45;pointer-events:none">${kw}</span>`;
-      h+=`<div class="${cl}" onclick="CL.toggle('${k}')" title="${hol||''}" style="position:relative">${kwl}${d}</div>`
+    const f=new Date(y,mo,1),la=new Date(y,mo+1,0),sd=(f.getDay()+6)%7,td=U.dk(U.now()),hols=HOL.get(y),nowY=U.now().getFullYear();
+    let h='<div class="cg"><div class="cwh"></div>';['Mo','Di','Mi','Do','Fr','Sa','So'].forEach(d=>{h+=`<div class="cdh">${d}</div>`});
+    const cells=[];for(let i=0;i<sd;i++)cells.push(0);for(let d=1;d<=la.getDate();d++)cells.push(d);while(cells.length%7!==0)cells.push(0);
+    for(let i=0;i<cells.length;i+=7){
+      let kw='';for(let j=0;j<7;j++){if(cells[i+j]){kw=U.getKW(new Date(y,mo,cells[i+j]));break}}
+      const curRow=kw===curKW&&y===nowY;
+      h+=`<div class="cwk${curRow?' cur':''}">${kw}</div>`;
+      for(let j=0;j<7;j++){
+        const d=cells[i+j];
+        if(!d){h+='<div class="cdy em"></div>';continue}
+        const dt=new Date(y,mo,d),k=U.dk(dt),we=U.isWE(dt),hol=hols[k],ce=A.getCE(k),isT=k===td,hs=A.hasS(k);
+        let cl='cdy';if(we)cl+=' we';if(hol)cl+=' hol';if(isT)cl+=' today';if(hs)cl+=' stpd';
+        if(ce)cl+=' '+ce.replace('_','-');
+        h+=`<div class="${cl}" onclick="CL.toggle('${k}')" title="${hol||''}">${d}</div>`
+      }
     }
     return h+'</div>'
   },
@@ -632,7 +671,11 @@ const CL={
     }
     await A.sf('calendar',cal)
   },
-  scrollToday(){const n=U.now();if(A.calY!==n.getFullYear()){A.calY=n.getFullYear();this.render()}const el=document.getElementById('calM'+n.getMonth());if(el)el.scrollIntoView({behavior:'smooth',block:'center'})}
+  scrollToday(){const n=U.now();if(A.calY!==n.getFullYear()){A.calY=n.getFullYear();this.render()}
+    const el=document.getElementById('calM'+n.getMonth()),mc=document.getElementById('mainContent');
+    if(el&&mc){const sticky=document.querySelector('#pg_cal .csk');const offset=(sticky?sticky.offsetHeight:0)+14;
+      const elRect=el.getBoundingClientRect(),mcRect=mc.getBoundingClientRect();
+      const top=mc.scrollTop+(elRect.top-mcRect.top)-offset;mc.scrollTo({top:Math.max(0,top),behavior:'smooth'})}}
 };
 
 const DA={
@@ -814,9 +857,18 @@ const SE={
     document.getElementById('setVac').value=ys.vacDays!=null?ys.vacDays:30;
     document.getElementById('setCO').value=ys.carryOver||0;
     document.getElementById('setFlex').value=ys.flexStart||0;
+    // Pulse color
+    const pc=s.pulseColor||'#5aa2ff';const pi=document.getElementById('setPulse');if(pi)pi.value=pc;const ph=document.getElementById('pulseHex');if(ph)ph.textContent=pc.toUpperCase();
+    const presets=['#5aa2ff','#3ddc97','#b197fc','#ff6b6b','#ffa94d','#ffd43b','#3bc9db','#f783ac'];
+    const pp=document.getElementById('pulsePresets');if(pp)pp.innerHTML=presets.map(c=>`<button class="pi" onclick="SE.setPulse('${c}')" style="width:30px;height:30px;padding:0;border-radius:50%;background:${c};border:2px solid ${c.toLowerCase()===pc.toLowerCase()?'#fff':'transparent'};box-shadow:0 0 10px ${c}66"></button>`).join('');
     // Export toggles
     const eo=ud.exportOpts||['excel','times','calInvite','importTimes'];
     ['excel','times','calInvite','importTimes'].forEach(id=>{const el=document.getElementById('eo_'+id);if(el)el.checked=eo.includes(id)})
+  },
+  async setPulse(hex){
+    const ud=A.d(),s=ud.settings||{};s.pulseColor=hex;await A.sf('settings',s);
+    const pi=document.getElementById('setPulse');if(pi)pi.value=hex;const ph=document.getElementById('pulseHex');if(ph)ph.textContent=hex.toUpperCase();
+    A.applyPulse();this.load();U.toast('Puls-Farbe gespeichert','success')
   },
   async save(){
     const ud=A.d(),s=ud.settings||{};
@@ -927,6 +979,7 @@ const EX={
   }
 };
 
+const LOGO=`<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5aa2ff"/><stop offset="0.55" stop-color="#3d7ef0"/><stop offset="1" stop-color="#2554c9"/></linearGradient><linearGradient id="lsheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.28"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.05"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path fill="url(#lbg)" d="M256 16C96 16 16 96 16 256C16 416 96 496 256 496C416 496 496 416 496 256C496 96 416 16 256 16Z"/><path fill="url(#lsheen)" d="M256 16C96 16 16 96 16 256C16 300 22 336 34 366C120 300 392 300 478 366C490 336 496 300 496 256C496 96 416 16 256 16Z"/><circle class="ring" cx="256" cy="228" r="132" fill="none" stroke="#fff" stroke-width="18" stroke-opacity="0.95"/><g stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-opacity="0.9"><line x1="256" y1="118" x2="256" y2="140"/><line x1="256" y1="316" x2="256" y2="338"/><line x1="146" y1="228" x2="168" y2="228"/><line x1="344" y1="228" x2="366" y2="228"/></g><g stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-opacity="0.5"><line x1="311" y1="133" x2="302" y2="149"/><line x1="351" y1="173" x2="335" y2="182"/><line x1="351" y1="283" x2="335" y2="274"/><line x1="311" y1="323" x2="302" y2="307"/><line x1="201" y1="323" x2="210" y2="307"/><line x1="161" y1="283" x2="177" y2="274"/><line x1="161" y1="173" x2="177" y2="182"/><line x1="201" y1="133" x2="210" y2="149"/></g><line x1="256" y1="228" x2="200" y2="186" stroke="#fff" stroke-width="16" stroke-linecap="round"/><line x1="256" y1="228" x2="300" y2="150" stroke="#fff" stroke-width="14" stroke-linecap="round"/><circle cx="256" cy="228" r="15" fill="#fff"/><circle cx="256" cy="228" r="7" fill="#3d7ef0"/><rect x="146" y="392" width="220" height="72" rx="36" fill="#fff"/><text x="256" y="444" text-anchor="middle" font-family="Outfit,Arial,sans-serif" font-weight="700" font-size="52" letter-spacing="6" fill="#2554c9">RAS</text></svg>`;
 function renderApp(){
 const SVG={
   gear:'<svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>',
@@ -936,8 +989,9 @@ const SVG={
   edit:'<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
 };
 document.getElementById('root').innerHTML=`
+<div id="splash"><div class="splash-logo">${LOGO}</div><div class="splash-word">Zeiterfassung</div></div>
 <div id="toast" class="toast"></div>
-<div id="loginPage" class="lp" style="display:none"><div class="lc"><div class="ltl">RAS Zeiterfassung</div><div class="lsb">Bitte anmelden</div><div class="lf"><div class="fg"><input type="text" id="loginUser" placeholder="Benutzername" autocomplete="username"></div><div class="fg"><input type="password" id="loginPass" placeholder="Passwort" autocomplete="current-password"></div><div id="loginHint" class="lh" style="display:none"></div><button class="btn bp bw" onclick="AUTH.login()" style="margin-top:8px;padding:14px">Anmelden</button><div class="ll"><button onclick="AUTH.showPw()">Passwort ändern</button></div></div></div></div>
+<div id="loginPage" class="lp" style="display:none"><div class="lc"><div class="login-logo">${LOGO}</div><div class="ltl">RAS Zeiterfassung</div><div class="lsb">Bitte anmelden</div><div class="lf"><div class="fg"><input type="text" id="loginUser" placeholder="Benutzername" autocomplete="username"></div><div class="fg"><input type="password" id="loginPass" placeholder="Passwort" autocomplete="current-password"></div><div id="loginHint" class="lh" style="display:none"></div><button class="btn bp bw" onclick="AUTH.login()" style="margin-top:8px;padding:14px">Anmelden</button><div class="ll"><button onclick="AUTH.showPw()">Passwort ändern</button></div></div></div></div>
 
 <div id="admO" class="mo" onclick="if(event.target===this)MO.close('admO')"><div class="ml" style="max-height:90vh"><div class="mh"></div><div class="mt">Admin</div><div id="admList"></div><div style="margin-top:14px;border-top:1px solid rgba(255,255,255,.06);padding-top:14px"><div class="mt" style="font-size:15px">Backup</div><div style="display:flex;gap:8px"><button class="btn bs bg" onclick="ADM.expBk()" style="flex:1">Export</button><button class="btn bs bg" onclick="document.getElementById('bkF').click()" style="flex:1">Import</button><input type="file" id="bkF" accept=".json" style="display:none" onchange="ADM.impBk(event)"></div></div><div class="ma"><button class="btn bg" onclick="MO.close('admO')">Schließen</button></div></div></div>
 <div id="pwO" class="mo" onclick="if(event.target===this)MO.close('pwO')"><div class="ml"><div class="mh"></div><div class="mt">Passwort ändern</div><div class="fg"><label class="fl">User</label><input type="text" id="pwUser" autocomplete="username"></div><div class="fg"><label class="fl">Altes PW</label><input type="password" id="pwOld"></div><div class="fg"><label class="fl">Neues PW</label><input type="password" id="pwNew"></div><div class="ma"><button class="btn bg" onclick="MO.close('pwO')">Abbrechen</button><button class="btn bp" onclick="AUTH.changePw()">Ändern</button></div></div></div>
@@ -953,7 +1007,7 @@ document.getElementById('root').innerHTML=`
 <div id="impTO" class="mo" onclick="if(event.target===this)MO.close('impTO')"><div class="ml"><div class="mh"></div><div class="mt">Zeiten importieren</div><p style="font-size:12px;color:var(--text2);margin-bottom:10px">Excel im Export-Format</p><div class="fg"><input type="file" id="impTF" accept=".xlsx,.csv" style="font-size:12px"></div><div class="ma"><button class="btn bg" onclick="MO.close('impTO')">Abbrechen</button><button class="btn bp" onclick="EX.doImport()">Import</button></div></div></div>
 
 <div id="appMain" style="display:none;height:100%;flex-direction:column">
-<div class="hdr"><div><h1>RAS Zeiterfassung</h1><div class="ub" id="headerUser"></div></div><div class="ha"><button class="hb" onclick="A.nav('settings')">${SVG.gear}</button><button class="hb" onclick="A.logout()">${SVG.out}</button></div></div>
+<div class="hdr"><div class="brand"><div class="logo-mark">${LOGO}</div><div><h1>RAS Zeiterfassung</h1><div class="ub" id="headerUser"></div></div></div><div class="ha"><button class="hb" onclick="A.nav('settings')">${SVG.gear}</button><button class="hb" onclick="A.logout()">${SVG.out}</button></div></div>
 <div class="mc" id="mainContent">
 <div class="pg active" id="pg_stemp"><div class="ss"><button class="sb si" id="stampBtn" onclick="ST.toggle()"><div class="shim"></div><span class="sc" id="sClock">--:--</span><span class="sd" id="sDate"></span><span class="sl" id="sLbl">Einstempeln</span><span class="sd" id="sSince" style="font-size:9px;margin-top:2px"></span></button><div class="sst" id="sStat"></div><div class="sti" id="sTi"></div></div>
 <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px"><button class="mb" onclick="ST.openManual()">${SVG.edit} Manuell eintragen</button><button class="nachb" id="nachBtn" onclick="ST.openNach()">Stempeln nachholen</button></div>
@@ -971,6 +1025,9 @@ document.getElementById('root').innerHTML=`
 
 <div class="pg" id="pg_settings"><div class="pt">Einstellungen</div><div id="setUN" style="font-size:13px;color:var(--text2);margin-bottom:14px"></div>
 <div class="sse"><div class="sst2">Profil</div><div class="sit"><span class="sil">Name</span><div class="siv"><input type="text" id="setName" placeholder="Name"></div></div></div>
+<div class="sse"><div class="sst2">Design · Puls-Farbe</div><div style="font-size:12px;color:var(--text2);margin-bottom:10px">Farbe der Hervorhebung für aktuellen Monat, KW & heutigen Tag. Wird pro Benutzer geräteübergreifend gespeichert.</div>
+<div class="pc" id="pulsePresets"></div>
+<div class="sit" style="margin-top:6px"><span class="sil">Eigene Farbe</span><div class="siv" style="display:flex;align-items:center;gap:8px"><input type="color" id="setPulse" style="width:48px;height:42px;padding:3px;cursor:pointer" oninput="document.getElementById('pulseHex').textContent=this.value.toUpperCase();document.documentElement.style.setProperty('--pulse',this.value)" onchange="SE.setPulse(this.value)"><span id="pulseHex" style="font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums"></span></div></div></div>
 <div class="sse"><div class="sst2">Arbeitszeit</div><div class="sit"><span class="sil">Wochenstd.</span><div class="siv"><input type="number" id="setHrs" step="0.5" min="0" inputmode="decimal"></div></div><div class="sit"><span class="sil">Zählung ab</span><div class="siv"><input type="date" id="setSD"></div></div></div>
 <div class="sse"><div class="sst2">Jahr</div><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div class="cn"><button onclick="SE.sY--;SE.load()">${SVG.L}</button></div><span id="sYE" style="font-weight:600;font-size:16px"></span><div class="cn"><button onclick="SE.sY++;SE.load()">${SVG.R}</button></div></div>
 <div class="sit"><span class="sil">Urlaubstage</span><div class="siv"><input type="number" id="setVac" min="0" inputmode="numeric"></div></div>
@@ -988,6 +1045,7 @@ document.getElementById('root').innerHTML=`
 <div class="sse"><div class="sst2">Feiertage</div><button class="btn bs bg" onclick="document.getElementById('holYear').value=new Date().getFullYear();MO.open('holO')">Importieren</button></div>
 <div class="sse" style="margin-top:20px"><button class="btn bp bw" onclick="SE.save()">Speichern</button></div></div>
 </div>
+<div class="navfade"></div>
 <nav class="bn">
 <button class="ni active" onclick="A.nav('stemp')" data-p="stemp"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Stempeln</span></button>
 <button class="ni" onclick="A.nav('cal')" data-p="cal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Kalender</span></button>
@@ -999,7 +1057,9 @@ document.getElementById('root').innerHTML=`
 </div>`}
 
 async function init(){
-  renderApp();await DB.ensure();
+  renderApp();
+  setTimeout(()=>{const sp=document.getElementById('splash');if(sp)sp.classList.add('gone')},1750);
+  await DB.ensure();
   document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')AUTH.login()});
   document.getElementById('loginUser').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass').focus()});
   document.getElementById('loginUser').addEventListener('input',async function(){const u=this.value.trim();if(!u||u==='admin'){document.getElementById('loginHint').style.display='none';return}const d=await DB.get(u);document.getElementById('loginHint').style.display=d?'none':'block';if(!d)document.getElementById('loginHint').textContent='Neu hier? Vergebe ein Passwort und melde dich an.'});
