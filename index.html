@@ -230,6 +230,55 @@ radial-gradient(50% 40% at 82% 78%,rgba(177,151,252,.16),transparent 60%),
 .ch-sum{display:flex;gap:8px;font-size:11px;color:var(--text2);margin-bottom:6px;flex-wrap:wrap}
 .ch-sum span{background:var(--glass2);border:1px solid var(--bdr);padding:3px 10px;border-radius:999px;font-variant-numeric:tabular-nums}
 
+/* Tagesverlauf (Timeline) */
+@keyframes tlSeg{from{transform:translateX(-50%) scaleY(0);opacity:0}to{transform:translateX(-50%) scaleY(1);opacity:1}}
+@keyframes tlLive{0%,100%{opacity:1}50%{opacity:.5}}
+.tlc{background:linear-gradient(180deg,var(--glass2),var(--glass));border:1px solid var(--bdr);border-radius:20px;padding:16px 14px 14px;margin-bottom:12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);animation:fadeIn .35s ease both}
+.tl-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;padding:0 2px}
+.tl-hd .cht{margin:0}
+.tl-mo{font-size:10px;color:var(--text2);font-weight:500;letter-spacing:.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+.tl-jt{font-size:11px;font-weight:500;color:var(--text);padding:7px 14px;border-radius:999px;background:var(--glass2);border:1px solid var(--bdr);transition:var(--tr);box-shadow:inset 0 1px 0 rgba(255,255,255,.06);white-space:nowrap;flex-shrink:0}
+.tl-jt:active{transform:scale(.93)}
+.tl-body{display:flex;position:relative}
+.tl-yax{position:relative;flex-shrink:0;width:40px}
+.tl-yl{position:absolute;right:8px;transform:translateY(-50%);font-size:9px;color:var(--text3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tl-sc{flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 16px,#000 calc(100% - 16px),transparent 100%)}
+.tl-sc::-webkit-scrollbar{display:none}
+.tl-tr{position:relative}
+.tl-gl{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.05);pointer-events:none}
+.tl-ms{position:absolute;top:0;width:1px;background:rgba(255,255,255,.1);pointer-events:none}
+.tl-ms span{position:absolute;top:1px;left:6px;font-size:8px;font-weight:600;letter-spacing:.7px;color:var(--text3);text-transform:uppercase;white-space:nowrap}
+.tl-now{position:absolute;left:0;right:0;height:1px;background:var(--pulse);opacity:.5;pointer-events:none;box-shadow:0 0 10px 1px var(--pulse-glow)}
+.tl-col{position:absolute;top:0;border-radius:12px;cursor:pointer;transition:background .2s ease,box-shadow .2s ease}
+.tl-col.we{background:rgba(255,255,255,.028)}
+.tl-col.sel{background:var(--glass3);box-shadow:inset 0 0 0 1.5px var(--blue)}
+.tl-col.today{box-shadow:inset 0 0 0 1.5px var(--pulse)}
+.tl-seg{position:absolute;left:50%;width:7px;border-radius:5px;background:currentColor;transform:translateX(-50%);transform-origin:top center;box-shadow:0 0 14px -3px currentColor;animation:tlSeg .55s cubic-bezier(.4,0,.2,1) both}
+.tl-seg::before,.tl-seg::after{content:'';position:absolute;left:50%;width:11px;height:11px;border-radius:50%;background:currentColor;transform:translate(-50%,-50%);box-shadow:0 0 0 2.5px rgba(9,11,20,.92),0 0 10px -1px currentColor}
+.tl-seg::before{top:0}
+.tl-seg::after{top:100%}
+.tl-seg.live{animation:tlSeg .55s cubic-bezier(.4,0,.2,1) both,tlLive 2.2s ease-in-out .55s infinite}
+.tl-xl{position:absolute;text-align:center;pointer-events:none}
+.tl-xl .w{font-size:8px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px}
+.tl-xl .d{font-size:11px;font-weight:600;color:var(--text2);font-variant-numeric:tabular-nums;margin-top:1px}
+.tl-xl.we .w,.tl-xl.we .d{opacity:.45}
+.tl-xl.cur .w,.tl-xl.cur .d{color:var(--pulse);opacity:1}
+.tl-lg{display:flex;gap:13px;flex-wrap:wrap;margin-top:14px;padding:0 2px}
+.tl-lg span{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--text3);font-weight:500}
+.tl-lg i{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.tl-det{margin-top:12px;padding:13px 14px;border-radius:16px;background:var(--glass);border:1px solid var(--bdr);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.tl-dh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:11px;flex-wrap:wrap}
+.tl-dd{font-size:14px;font-weight:600;letter-spacing:-.2px}
+.tl-dt{font-size:10px;color:var(--text2)}
+.tl-dg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tl-dk{background:var(--glass2);border:1px solid var(--bdr);border-radius:13px;padding:10px 8px;text-align:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.tl-dk b{display:block;font-size:14px;font-weight:600;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+.tl-dk s{display:block;text-decoration:none;font-size:8px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-top:4px}
+.tl-row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);font-variant-numeric:tabular-nums}
+.tl-row:last-child{border-bottom:none}
+.tl-row span:nth-child(2){color:var(--text2);font-size:10px}
+.tl-em{font-size:11px;color:var(--text3);padding:2px 0}
+
 /* Login */
 .lp{display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;padding:20px;width:100%}
 .lc{width:100%;max-width:380px;text-align:center;animation:slideUp .5s ease both;background:linear-gradient(180deg,var(--glass2),var(--glass));border:1px solid var(--bdr2);border-radius:28px;padding:36px 26px 30px;backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:0 24px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.1)}
@@ -335,6 +384,9 @@ const DB={
 };
 
 // ===== APP CORE =====
+const MON=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const MONS=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+
 const TYPES=[
   {id:'vacation',l:'Urlaub',c:'var(--blue)',as:'vac'},
   {id:'vacation_half',l:'½ Urlaub',c:'var(--blue)',as:'vhalf'},
@@ -411,7 +463,7 @@ const A={
     const nav=document.querySelector(`[data-p="${p}"]`);if(nav)nav.classList.add('active');
     if(p==='stemp')ST.updPage();
     if(p==='cal'){CL.render();setTimeout(()=>CL.scrollToday(),200)}
-    if(p==='dash')DA.render();
+    if(p==='dash'){DA._tl.scroll=null;DA._tl.sel=null;DA.render()}
     if(p==='week'){WK.render();requestAnimationFrame(()=>setTimeout(()=>WK.scrollKW(U.getKW(U.now())),100))}
     if(p==='settings')SE.load();
     if(p==='export')EX.renderPage();
@@ -706,8 +758,149 @@ const DA={
     document.getElementById('dashCh').innerHTML=`
       <div class="chb" style="animation:fadeIn .35s ease both"><div class="cht">KW ${U.getKW(n)}</div><div class="bc" style="padding-bottom:18px">${wB}</div></div>
       <div class="chb" style="animation:fadeIn .35s ease .1s both"><div class="cht">Ø Überstd. vs Arbeitszeit</div><div style="display:flex;align-items:center;gap:14px;justify-content:center;padding:8px 0"><svg viewBox="0 0 36 36" width="110" height="110"><path d="M18 2.0845a15.9155 15.9155 0 010 31.831 15.9155 15.9155 0 010-31.831" fill="none" stroke="var(--bg4)" stroke-width="3"/><path d="M18 2.0845a15.9155 15.9155 0 010 31.831 15.9155 15.9155 0 010-31.831" fill="none" stroke="${mOT>=0?'var(--green)':'var(--red)'}" stroke-width="3" stroke-dasharray="${Math.min(otR,100)} 100" style="--val:${Math.min(otR,100)};animation:donutDraw 1.2s ease both"/></svg><div><div style="font-size:18px;font-weight:600">${avgOT>=0?'+':''}${avgOT.toFixed(1)}<span style="font-size:11px;color:var(--text2)">h/Tag</span></div><div style="font-size:10px;color:var(--text2)">Ø ${avgW.toFixed(1)}h/Tag</div></div></div></div>`;
+    this.renderTl();
     this.renderCustom()
   },
+
+  // ===== Tagesverlauf-Timeline =====
+  TLW:40,TLH:250,TLL:38,TLCHUNK:45,
+  _tl:{from:null,to:null,sel:null,scroll:null,ext:null,tx:0,today:null},
+  _hm(m){const s=m<0?'-':'';m=Math.abs(Math.round(m));return s+Math.floor(m/60)+'h '+U.S(m%60)+'m'},
+  // Zerlegt einen Zeitraum in Tagesabschnitte (auch über Mitternacht hinweg)
+  _tlSplit(map,iD,oD,live){
+    if(isNaN(iD)||isNaN(oD)||oD<=iD)return;
+    const tz=A.tz();let cur=U.dkTz(iD);const last=U.dkTz(oD);
+    for(let g=0;g<14;g++){
+      const nd=U.pdk(cur);nd.setDate(nd.getDate()+1);const nk=U.dk(nd);
+      const ds=U.fromTz(cur,'00:00',tz),dend=U.fromTz(nk,'00:00',tz),len=dend-ds;
+      const s=iD>ds?iD:ds,e=oD<dend?oD:dend;
+      if(e>s&&len>0)(map[cur]=map[cur]||[]).push({a:(s-ds)/len*24,b:(e-ds)/len*24,live:!!live});
+      if(cur===last)break;
+      cur=nk
+    }
+  },
+  _tlSegs(st){
+    const map={};
+    Object.keys(st).forEach(dk=>{(st[dk]||[]).forEach(e=>this._tlSplit(map,new Date(e.in),new Date(e.out)))});
+    const cs=A.d().currentStamp;
+    if(cs)this._tlSplit(map,new Date(cs),new Date(),1);
+    return map
+  },
+  _tlDay(dk,st,withLive){
+    const ent=(st[dk]||[]).slice().sort((a,b)=>new Date(a.in)-new Date(b.in));
+    let work=0;ent.forEach(e=>{work+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});
+    let live=0;const cs=A.d().currentStamp;
+    if(withLive&&cs){
+      const tz=A.tz(),nd=U.pdk(dk);nd.setDate(nd.getDate()+1);
+      const s=Math.max(new Date(cs).getTime(),U.fromTz(dk,'00:00',tz).getTime());
+      const e=Math.min(Date.now(),U.fromTz(U.dk(nd),'00:00',tz).getTime());
+      if(e>s)live=(e-s)/6e4
+    }
+    const exp=A.expH(dk)*60;
+    return{ent,work:work+live,live,exp,ot:work+live-exp,pause:U.totalPause(ent)}
+  },
+  renderTl(keepX){
+    const el=document.getElementById('dashTl');if(!el)return;
+    const st=A.d().stamps||{},n=U.now(),tK=U.dk(n),CW=this.TLW,H=this.TLH,LH=this.TLL;
+    if(!this._tl.from){
+      const f=new Date(n.getFullYear(),n.getMonth(),n.getDate()-this.TLCHUNK);
+      const t=new Date(n.getFullYear(),n.getMonth(),n.getDate()+6);
+      this._tl.from=U.dk(f);this._tl.to=U.dk(t)
+    }
+    this._tl.today=tK;
+    const segs=this._tlSegs(st);
+    // Y-Achse: Bereich über alle vorhandenen Daten -> bleibt beim Scrollen stabil
+    let lo=24,hi=0,any=false;
+    Object.keys(segs).forEach(k=>segs[k].forEach(s=>{if(s.a<lo)lo=s.a;if(s.b>hi)hi=s.b;any=true}));
+    if(!any){lo=7;hi=18}
+    lo=Math.max(0,Math.floor(lo)-1);hi=Math.min(24,Math.ceil(hi)+1);
+    if(hi-lo<8){lo=Math.max(0,hi-8);hi=Math.min(24,lo+8)}
+    const span=hi-lo||8,Y=h=>(h-lo)/span*H,stp=span<=9?1:span<=15?2:3;
+    // Raster + Stundenbeschriftung
+    let grid='',yax='';
+    for(let h=Math.ceil(lo/stp)*stp;h<=hi;h+=stp){const y=Y(h);grid+=`<div class="tl-gl" style="top:${y.toFixed(1)}px"></div>`;yax+=`<div class="tl-yl" style="top:${y.toFixed(1)}px">${U.S(h)}:00</div>`}
+    // Tage
+    const days=[];{const d=U.pdk(this._tl.from),e=U.pdk(this._tl.to);while(d<=e){days.push(new Date(d));d.setDate(d.getDate()+1)}}
+    let cols='',labs='',seps='',tIdx=-1;
+    days.forEach((d,i)=>{
+      const dk=U.dk(d),x=i*CW,we=U.isWE(d)||!!HOL.is(dk),isT=dk===tK;
+      if(isT)tIdx=i;
+      const inf=this._tlDay(dk,st);
+      let bars='';
+      (segs[dk]||[]).forEach((s,j)=>{
+        const t=Math.max(Y(Math.max(s.a,lo)),0),b=Math.min(Y(Math.min(s.b,hi)),H);
+        if(b<=0||t>=H)return;
+        const c=s.live?'var(--pulse)':inf.ot>=0?'var(--green)':'var(--red)';
+        bars+=`<div class="tl-seg${s.live?' live':''}" style="top:${t.toFixed(1)}px;height:${Math.max(b-t,5).toFixed(1)}px;color:${c};animation-delay:${Math.min(i,24)*22+j*40}ms"></div>`
+      });
+      const cls='tl-col'+(we?' we':'')+(isT?' today':'')+(dk===this._tl.sel?' sel':'');
+      cols+=`<div class="${cls}" data-dk="${dk}" style="left:${x}px;width:${CW}px;height:${H}px" onclick="DA.tlSel('${dk}')">${bars}</div>`;
+      labs+=`<div class="tl-xl${we?' we':''}${isT?' cur':''}" style="left:${x}px;width:${CW}px;top:${H+7}px"><div class="w">${U.wd(d)}</div><div class="d">${d.getDate()}</div></div>`;
+      if(d.getDate()===1&&i>0)seps+=`<div class="tl-ms" style="left:${x}px;height:${H}px"><span>${MONS[d.getMonth()]}</span></div>`
+    });
+    const nowH=n.getHours()+n.getMinutes()/60;
+    const nowL=(nowH>=lo&&nowH<=hi)?`<div class="tl-now" style="top:${Y(nowH).toFixed(1)}px"></div>`:'';
+    if(!this._tl.sel||!days.some(d=>U.dk(d)===this._tl.sel))this._tl.sel=tK;
+    el.innerHTML=`<div class="tlc">
+      <div class="tl-hd"><div><div class="cht">Tagesverlauf</div><div class="tl-mo" id="tlMo"></div></div><button class="tl-jt" onclick="DA.tlToday()">Heute</button></div>
+      <div class="tl-body"><div class="tl-yax" style="height:${H+LH}px">${yax}</div>
+      <div class="tl-sc" onscroll="DA.tlScroll(this)"><div class="tl-tr" style="width:${days.length*CW}px;height:${H+LH}px">${grid}${seps}${nowL}${cols}${labs}</div></div></div>
+      <div class="tl-lg"><span><i style="background:var(--green)"></i>Überstunden</span><span><i style="background:var(--red)"></i>Minusstunden</span><span><i style="background:var(--pulse)"></i>Läuft gerade</span></div>
+      <div class="tl-det" id="tlDet">${this._tlDet(this._tl.sel)}</div></div>`;
+    const sc=el.querySelector('.tl-sc');if(!sc)return;
+    // Heute rechts einordnen, damit möglichst viel Vergangenheit sichtbar bleibt
+    this._tl.tx=tIdx<0?0:Math.max(0,Math.round(tIdx*CW-(sc.clientWidth-CW)*.72));
+    sc.scrollLeft=Math.max(0,keepX!=null?keepX:(this._tl.scroll!=null?this._tl.scroll:this._tl.tx));
+    this._tl.scroll=sc.scrollLeft;
+    this._tlMon(sc)
+  },
+  _tlMon(sc){
+    const el=document.getElementById('tlMo');if(!el||!this._tl.from)return;
+    const i=Math.max(0,Math.round((sc.scrollLeft+sc.clientWidth/2)/this.TLW-.5));
+    const d=U.pdk(this._tl.from);d.setDate(d.getDate()+i);
+    el.textContent=MON[d.getMonth()]+' '+d.getFullYear()
+  },
+  tlScroll(sc){
+    this._tl.scroll=sc.scrollLeft;this._tlMon(sc);
+    clearTimeout(this._tl.ext);
+    if(sc.scrollLeft>=this.TLW*2)return;
+    // Weiter in die Vergangenheit nachladen, sobald das Scrollen zur Ruhe kommt
+    this._tl.ext=setTimeout(()=>{
+      const el=document.getElementById('dashTl'),s2=el&&el.querySelector('.tl-sc');
+      if(!s2||s2.scrollLeft>=this.TLW*2)return;
+      const f=U.pdk(this._tl.from);f.setDate(f.getDate()-this.TLCHUNK);this._tl.from=U.dk(f);
+      this.renderTl(s2.scrollLeft+this.TLCHUNK*this.TLW)
+    },140)
+  },
+  tlSel(dk){
+    this._tl.sel=dk;
+    document.querySelectorAll('#dashTl .tl-col').forEach(c=>c.classList.toggle('sel',c.dataset.dk===dk));
+    const d=document.getElementById('tlDet');if(d)d.innerHTML=this._tlDet(dk)
+  },
+  tlToday(){
+    const el=document.getElementById('dashTl'),sc=el&&el.querySelector('.tl-sc');if(!sc)return;
+    sc.scrollTo({left:this._tl.tx,behavior:'smooth'});
+    this.tlSel(this._tl.today||U.dk(U.now()))
+  },
+  _tlDet(dk){
+    const st=A.d().stamps||{},inf=this._tlDay(dk,st,1),d=U.pdk(dk),hol=HOL.is(dk),ce=A.getCE(dk);
+    let tag=U.isWE(d)?'Wochenende':'Werktag';
+    if(hol)tag='Feiertag · '+hol;
+    if(ce)tag=A.tLabel(ce);
+    tag+=' · Soll '+this._hm(inf.exp);
+    const cs=A.d().currentStamp,ot=inf.ot,lv=inf.live>0;
+    let rows=inf.ent.map(e=>`<div class="tl-row"><span>${U.fTz(e.in)} – ${U.fTz(e.out)}</span><span>Pause ${e.pause||0}m</span><span>${this._hm((new Date(e.out)-new Date(e.in))/6e4-(e.pause||0))}</span></div>`).join('');
+    if(lv)rows+=`<div class="tl-row"><span style="color:var(--pulse)">${U.fTz(new Date(cs))} – läuft …</span><span>Pause offen</span><span style="color:var(--pulse)">${this._hm(inf.live)}</span></div>`;
+    if(!rows)rows='<div class="tl-em">Keine Stempelungen an diesem Tag.</div>';
+    return`<div class="tl-dh"><div class="tl-dd">${U.wdL(d)}, ${U.fD(d)}${lv?' <span style="font-size:10px;font-weight:500;color:var(--pulse)">· läuft</span>':''}</div><div class="tl-dt">${tag}</div></div>
+      <div class="tl-dg">
+        <div class="tl-dk"><b${lv?' style="color:var(--pulse)"':''}>${this._hm(inf.work)}</b><s>Arbeitszeit</s></div>
+        <div class="tl-dk"><b style="color:${ot>=0?'var(--green)':'var(--red)'}">${ot>=0?'+':'−'}${this._hm(Math.abs(ot))}</b><s>Überstunden</s></div>
+        <div class="tl-dk"><b>${Math.round(inf.pause)}<span style="font-size:10px;color:var(--text2)">m</span></b><s>Pause</s></div>
+      </div>
+      <div style="margin-top:11px">${rows}</div>`
+  },
+
   comp(k,st,cal,n,ws){
     const y=n.getFullYear(),mo=n.getMonth(),ms=new Date(y,mo,1),me=new Date(y,mo+1,0);
     const we=new Date(ws);we.setDate(we.getDate()+7);
@@ -1018,7 +1211,7 @@ document.getElementById('root').innerHTML=`
 
 <div class="pg" id="pg_cal"><div class="csk"><div class="ch"><div class="cn"><button onclick="A.calY--;CL.render()">${SVG.L}</button></div><h3 id="calYE"></h3><div class="cn"><button onclick="A.calY++;CL.render()">${SVG.R}</button></div></div><div id="calSt" class="sg" style="grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:0"></div><div class="cleg" id="calLeg"></div></div><div id="calMos"></div></div>
 
-<div class="pg" id="pg_dash"><div class="pt" style="display:flex;align-items:center;justify-content:space-between">Dashboard<div style="display:flex;gap:6px"><button class="btn bs bg" onclick="MO.open('kpiO')">+ KPI</button><button class="btn bs bg" onclick="MO.open('chO')">+ Diagramm</button></div></div><div id="dashSt" class="sg"></div><div id="dashCh"></div><div id="custCh"></div></div>
+<div class="pg" id="pg_dash"><div class="pt" style="display:flex;align-items:center;justify-content:space-between">Dashboard<div style="display:flex;gap:6px"><button class="btn bs bg" onclick="MO.open('kpiO')">+ KPI</button><button class="btn bs bg" onclick="MO.open('chO')">+ Diagramm</button></div></div><div id="dashSt" class="sg"></div><div id="dashTl"></div><div id="dashCh"></div><div id="custCh"></div></div>
 
 <div class="pg" id="pg_week"><div class="wsk"><div class="wyn"><div class="cn"><button onclick="A.weekY--;WK.render()">${SVG.L}</button></div><h3 id="wkYE"></h3><div class="cn"><button onclick="A.weekY++;WK.render()">${SVG.R}</button></div></div><div class="cto" id="colTog"></div></div><div id="wkContent"></div></div>
 
