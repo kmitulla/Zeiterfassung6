@@ -211,6 +211,9 @@ radial-gradient(50% 40% at 82% 78%,rgba(177,151,252,.16),transparent 60%),
 .wt tr:hover td{background:rgba(255,255,255,.03)}
 .bdg{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:500;font-variant-numeric:tabular-nums}
 .bdg-g{background:var(--green-bg);color:var(--green)}.bdg-r{background:var(--red-bg);color:var(--red)}.bdg-o{background:var(--orange-bg);color:var(--orange)}.bdg-b{background:var(--blue-glow);color:var(--blue)}.bdg-p{background:var(--purple-bg);color:var(--purple)}
+.dupflag{color:var(--orange);margin-right:4px;font-size:11px}
+.dupw{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--orange-bg);border:1px solid rgba(255,169,77,.35);border-radius:14px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:var(--orange)}
+.dupw button{font-size:11px;font-weight:500;color:var(--text);background:var(--glass2);border:1px solid var(--bdr);padding:7px 13px;border-radius:999px;white-space:nowrap;flex-shrink:0}
 .kwcard{animation:fadeIn .3s ease both;scroll-margin-top:140px}
 .kwcard.current-kw{animation:currentKW 3s ease-in-out infinite;border-radius:var(--rl)}
 #wkContent{margin-top:14px}
@@ -383,6 +386,41 @@ const DB={
   listen(id,cb){return db.collection('users').doc(id).onSnapshot(d=>{if(d.exists)cb(d.data())})}
 };
 
+// ===== SCHREIBSCHUTZ gegen Doppel-Einträge =====
+// Firestore bestätigt Schreibvorgänge erst vom Server. Bei schlechter Verbindung
+// dauert das lange – lokal ist der Wert aber sofort da. Darum: nie auf das Netz
+// warten, bevor die UI reagiert, und jeden Eintrag mehrfach gegen Duplikate sichern.
+const SAFE={
+  _busy:{},
+  lock(k,ms){if(this._busy[k])return false;this._busy[k]=true;setTimeout(()=>{this._busy[k]=false},ms||2500);return true},
+  free(k){this._busy[k]=false},
+  ref(){return db.collection('users').doc(A.user)},
+  fp(...p){return new firebase.firestore.FieldPath(...p)},
+  del(){return firebase.firestore.FieldValue.delete()},
+  // Überschneidet sich der Zeitraum mit einem bereits erfassten Eintrag des Tages?
+  dup(dk,inISO,outISO){
+    const ent=(A.d().stamps&&A.d().stamps[dk])||[];
+    const a=new Date(inISO).getTime(),b=new Date(outISO).getTime();
+    return ent.some(e=>{const c=new Date(e.in).getTime(),d=new Date(e.out).getTime();return a<d&&b>c})
+  },
+  // Tage mit sich überschneidenden Einträgen erkennen (Altbestand aufspüren)
+  overlaps(ent){
+    if(!ent||ent.length<2)return[];
+    const bad=new Set();
+    for(let i=0;i<ent.length;i++)for(let j=i+1;j<ent.length;j++){
+      const a=new Date(ent[i].in).getTime(),b=new Date(ent[i].out).getTime(),c=new Date(ent[j].in).getTime(),d=new Date(ent[j].out).getTime();
+      if(a<d&&b>c){bad.add(i);bad.add(j)}
+    }
+    return[...bad]
+  },
+  // Schreibt ohne zu blockieren; identische Array-Einträge werden von arrayUnion verworfen
+  write(args,okMsg){
+    this.ref().update(...args).catch(e=>{console.error(e);U.toast('Nicht gespeichert – bitte prüfen','error')});
+    if(okMsg)U.toast(okMsg,'success')
+  },
+  union(e){return firebase.firestore.FieldValue.arrayUnion(e)}
+};
+
 // ===== APP CORE =====
 const MON=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 const MONS=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -535,7 +573,8 @@ const ST={
     if(ud.currentStamp){this.openPause();return}
     const dk=U.dk(n),ce=A.getCE(dk),warn=['sick','vacation','vacation_half','carryover','carryover_half','flexday'];
     if(ce&&warn.includes(ce)){if(!confirm('Heute ist "'+A.tLabel(ce)+'". Stempeln? (=Überstunden)'))return}
-    await A.sf('currentStamp',n.toISOString());U.toast('Eingestempelt!','success')
+    if(!SAFE.lock('stamp',1500))return;
+    SAFE.write(['currentStamp',n.toISOString()],'Eingestempelt!')
   },
   async cancel(){if(!confirm('Abbrechen?'))return;await db.collection('users').doc(A.user).update({currentStamp:firebase.firestore.FieldValue.delete()});U.toast('Abgebrochen','success')},
 
@@ -564,7 +603,9 @@ const ST={
     if(!d||!t){U.toast('Datum und Uhrzeit eingeben','error');return}
     const dt=U.fromTz(d,t,tz);
     if(mode==='in'){
-      await A.sf('currentStamp',dt.toISOString());U.toast('Eingestempelt!','success')
+      if(!SAFE.lock('stamp',1500))return;
+      MO.close('nachO');
+      SAFE.write(['currentStamp',dt.toISOString()],'Eingestempelt!')
     }else{
       const ud=A.d();if(!ud.currentStamp){U.toast('Nicht eingestempelt','error');return}
       this._multiOut=dt;this._multiIn=new Date(ud.currentStamp);
@@ -605,13 +646,14 @@ const ST={
     mp.innerHTML=h;MO.open('pauseO')
   },
   async confirmPause(){
+    if(!SAFE.lock('pause'))return;                 // 1. Doppeltipp abfangen
     const ud=A.d(),days=this._days,inT=this._multiIn,outT=this._multiOut;
-    if(!days||!days.length)return;
-    const stamps=ud.stamps||{};
+    if(!days||!days.length||!outT){SAFE.free('pause');return}
+    this._days=null;this._multiIn=null;this._multiOut=null; // 2. Zustand sofort entwerten
+    const neu=[];
     if(days.length===1){
       let p=this.sp;const cv=document.getElementById('cPause').value;if(cv!=='')p=parseInt(cv)||0;if(p===null)p=0;
-      const dk=days[0];if(!stamps[dk])stamps[dk]=[];
-      stamps[dk].push({in:ud.currentStamp||inT.toISOString(),out:outT.toISOString(),pause:p})
+      neu.push({dk:days[0],e:{in:ud.currentStamp||inT.toISOString(),out:outT.toISOString(),pause:p}})
     }else{
       for(let i=0;i<days.length;i++){
         const dk=days[i],ds=U.pdk(dk);let si,so;
@@ -619,11 +661,17 @@ const ST={
         else if(i===days.length-1){si=new Date(ds);si.setHours(0,0,0,0);so=outT}
         else{si=new Date(ds);si.setHours(0,0,0,0);so=new Date(ds);so.setHours(23,59,0,0)}
         const pe=document.getElementById('mp_'+i);const p=pe?(parseInt(pe.value)||0):0;
-        if(!stamps[dk])stamps[dk]=[];stamps[dk].push({in:si.toISOString(),out:so.toISOString(),pause:p})
+        neu.push({dk,e:{in:si.toISOString(),out:so.toISOString(),pause:p}})
       }
     }
-    await db.collection('users').doc(A.user).update({stamps,currentStamp:firebase.firestore.FieldValue.delete()});
-    MO.close('pauseO');U.toast('Ausgestempelt!','success')
+    this.sp=null;
+    const ok=neu.filter(x=>!SAFE.dup(x.dk,x.e.in,x.e.out)); // 3. bereits erfasste Zeiträume auslassen
+    const args=[];
+    ok.forEach(x=>{args.push(SAFE.fp('stamps',x.dk),SAFE.union(x.e))}); // 4. atomar & dedupliziert
+    args.push('currentStamp',SAFE.del());
+    MO.close('pauseO');
+    SAFE.write(args,ok.length?(ok.length<neu.length?'Ausgestempelt – Duplikat übersprungen':'Ausgestempelt!'):null);
+    if(!ok.length)U.toast('Zeitraum war bereits erfasst','')
   },
   async addPreset(){const v=prompt('Voreinstellung (Min):');if(v&&!isNaN(parseInt(v))){const ud=A.d(),p=ud.pausePresets||[];p.push(parseInt(v));await A.sf('pausePresets',[...new Set(p)])}},
 
@@ -635,15 +683,15 @@ const ST={
     MO.open('manO')
   },
   async saveManual(){
+    if(!SAFE.lock('manual'))return;
     const dIn=document.getElementById('mDateIn').value,iT=document.getElementById('mIn').value,dOut=document.getElementById('mDateOut').value,oT=document.getElementById('mOut').value,tzIn=document.getElementById('mTzIn').value,tzOut=document.getElementById('mTzOut').value,p=parseInt(document.getElementById('mPause').value)||0;
-    if(!dIn||!iT||!dOut||!oT){U.toast('Alle Felder!','error');return}
+    if(!dIn||!iT||!dOut||!oT){U.toast('Alle Felder!','error');SAFE.free('manual');return}
     const inUtc=U.fromTz(dIn,iT,tzIn),outUtc=U.fromTz(dOut,oT,tzOut);
-    if(outUtc<=inUtc){U.toast('Aus muss nach Ein liegen!','error');return}
-    const dk=U.dkTz(inUtc),ud=A.d(),ent=(ud.stamps&&ud.stamps[dk])||[];
-    for(const e of ent){if(inUtc.getTime()<new Date(e.out).getTime()&&outUtc.getTime()>new Date(e.in).getTime()){U.toast('Zeitüberschneidung!','error');return}}
-    const stamps=ud.stamps||{};if(!stamps[dk])stamps[dk]=[];
-    stamps[dk].push({in:inUtc.toISOString(),out:outUtc.toISOString(),pause:p});
-    await A.sf('stamps',stamps);MO.close('manO');U.toast('Gespeichert','success')
+    if(outUtc<=inUtc){U.toast('Aus muss nach Ein liegen!','error');SAFE.free('manual');return}
+    const dk=U.dkTz(inUtc);
+    if(SAFE.dup(dk,inUtc.toISOString(),outUtc.toISOString())){U.toast('Zeitüberschneidung!','error');SAFE.free('manual');return}
+    MO.close('manO');
+    SAFE.write([SAFE.fp('stamps',dk),SAFE.union({in:inUtc.toISOString(),out:outUtc.toISOString(),pause:p})],'Gespeichert')
   },
 
   updPage(){
@@ -992,6 +1040,7 @@ const WK={
         const dk2=U.dk(day),ent=st[dk2]||[],we=U.isWE(day),hol=hols[dk2],ce=cal[dk2];
         let dm=0,dp=0,ts='-';ent.forEach(e=>{dm+=(new Date(e.out)-new Date(e.in))/6e4-(e.pause||0)});dp=U.totalPause(ent);
         if(ent.length)ts=ent.map(e=>U.fTz(new Date(e.in))+'-'+U.fTz(new Date(e.out))).join(', ');
+        if(SAFE.overlaps(ent).length)ts='<span class="dupflag" title="Doppelter Eintrag">⚠</span>'+ts;
         const exp=A.bfStart(dk2)?0:A.expH(dk2),dot=dm/60-exp;wOT+=dot;wW+=dm/60;
         let bd='';if(we)bd='<span class="bdg bdg-b">WE</span>';if(hol)bd='<span class="bdg bdg-o">FT</span>';
         if(ce){const t=TYPES.find(x=>x.id===ce);bd=`<span class="bdg" style="background:${t?t.c+'20':'var(--blue-glow)'};color:${t?t.c:'var(--blue)'}">${t?t.l.substring(0,4):ce.substring(0,4)}</span>`}
@@ -1019,7 +1068,9 @@ const WK={
   },
   openEdit(dk2){
     this.editDk=dk2;const ud=A.d(),ent=(ud.stamps&&ud.stamps[dk2])||[],note=(ud.notes&&ud.notes[dk2])||'';
-    let h=`<div style="font-size:14px;color:var(--text2);margin-bottom:10px">${U.fD(U.pdk(dk2))} (${U.wdL(U.pdk(dk2))})</div><div id="eEnts">`;
+    let h=`<div style="font-size:14px;color:var(--text2);margin-bottom:10px">${U.fD(U.pdk(dk2))} (${U.wdL(U.pdk(dk2))})</div>`;
+    if(SAFE.overlaps(ent).length)h+=`<div id="eDupW" class="dupw"><span>⚠ Doppelte bzw. überlappende Einträge an diesem Tag.</span><button onclick="WK.fixDup()">Duplikate entfernen</button></div>`;
+    h+=`<div id="eEnts">`;
     ent.forEach((e,i)=>{h+=`<div id="eE${i}" style="background:var(--bg3);padding:10px;border-radius:var(--rs);margin-bottom:6px"><div class="fr"><div class="fg" style="margin-bottom:6px"><label class="fl">Ein</label><input type="time" id="eI${i}" value="${U.fTz(new Date(e.in))}"></div><div class="fg" style="margin-bottom:6px"><label class="fl">Aus</label><input type="time" id="eO${i}" value="${U.fTz(new Date(e.out))}"></div><div class="fg" style="margin-bottom:6px"><label class="fl">P.</label><input type="number" id="eP${i}" value="${e.pause||0}" min="0" inputmode="numeric" style="width:60px"></div></div><button class="btn bs" style="color:var(--red);font-size:11px" onclick="document.getElementById('eE${i}').remove()">Löschen</button></div>`});
     h+=`</div><button class="btn bs bg" onclick="WK.addE()" style="margin-bottom:10px">+ Eintrag</button>`;
     h+=`<div class="fg"><label class="fl">Notiz</label><textarea id="eNote" rows="2" style="font-size:13px">${note}</textarea></div><input type="hidden" id="eCnt" value="${ent.length}">`;
@@ -1027,11 +1078,23 @@ const WK={
   },
   addE(){const cnt=parseInt(document.getElementById('eCnt').value);document.getElementById('eCnt').value=cnt+1;const c=document.getElementById('eEnts'),d=document.createElement('div');d.id='eE'+cnt;d.style.cssText='background:var(--bg3);padding:10px;border-radius:var(--rs);margin-bottom:6px';d.innerHTML=`<div class="fr"><div class="fg" style="margin-bottom:6px"><label class="fl">Ein</label><input type="time" id="eI${cnt}" value="08:00"></div><div class="fg" style="margin-bottom:6px"><label class="fl">Aus</label><input type="time" id="eO${cnt}" value="17:00"></div><div class="fg" style="margin-bottom:6px"><label class="fl">P.</label><input type="number" id="eP${cnt}" value="0" min="0" inputmode="numeric" style="width:60px"></div></div><button class="btn bs" style="color:var(--red);font-size:11px" onclick="document.getElementById('eE${cnt}').remove()">Löschen</button>`;c.appendChild(d)},
   async saveEdit(){
-    const dk2=this.editDk,cnt=parseInt(document.getElementById('eCnt').value),ud=A.d(),stamps=ud.stamps||{},entries=[];
+    if(!SAFE.lock('edit'))return;
+    const dk2=this.editDk,cnt=parseInt(document.getElementById('eCnt').value),entries=[];
     for(let i=0;i<cnt;i++){const iE=document.getElementById('eI'+i),oE=document.getElementById('eO'+i),pE=document.getElementById('eP'+i);if(!iE||!oE)continue;entries.push({in:U.fromTz(dk2,iE.value,A.tz()).toISOString(),out:U.fromTz(dk2,oE.value,A.tz()).toISOString(),pause:parseInt(pE.value)||0})}
-    for(let i=0;i<entries.length;i++)for(let j=i+1;j<entries.length;j++){const a=new Date(entries[i].in).getTime(),b=new Date(entries[i].out).getTime(),c=new Date(entries[j].in).getTime(),d=new Date(entries[j].out).getTime();if(a<d&&b>c){U.toast('Überschneidung!','error');return}}
-    stamps[dk2]=entries;const notes=ud.notes||{};notes[dk2]=document.getElementById('eNote').value;
-    await db.collection('users').doc(A.user).update({stamps,notes});MO.close('edO');U.toast('Gespeichert','success')
+    if(SAFE.overlaps(entries).length){U.toast('Überschneidung!','error');SAFE.free('edit');return}
+    MO.close('edO');
+    // Nur die betroffenen Tages-Schlüssel schreiben statt der kompletten Map
+    SAFE.write([SAFE.fp('stamps',dk2),entries.length?entries:SAFE.del(),SAFE.fp('notes',dk2),document.getElementById('eNote').value],'Gespeichert')
+  },
+  fixDup(){
+    const cnt=parseInt(document.getElementById('eCnt').value),seen={},rm=[];
+    for(let i=0;i<cnt;i++){const iE=document.getElementById('eI'+i),oE=document.getElementById('eO'+i),pE=document.getElementById('eP'+i);if(!iE||!oE)continue;
+      const k=iE.value+'|'+oE.value+'|'+(pE?pE.value:0);
+      if(seen[k])rm.push(i);else seen[k]=1}
+    if(!rm.length){U.toast('Keine exakten Duplikate','');return}
+    rm.forEach(i=>{const el=document.getElementById('eE'+i);if(el)el.remove()});
+    const w=document.getElementById('eDupW');if(w)w.remove();
+    U.toast(rm.length+' Duplikat'+(rm.length>1?'e':'')+' entfernt – jetzt speichern','success')
   }
 };
 
