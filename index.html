@@ -473,7 +473,7 @@ const A={
   },
   loadData(){
     if(this._unsub)this._unsub();
-    this._unsub=DB.listen(this.user,data=>{this._d=data;this.updUI()})
+    this._unsub=DB.listen(this.user,data=>{this._d=data;this.updUI();NFC.run()})
   },
   applyPulse(){
     const hex=(this._d.settings&&this._d.settings.pulseColor)||'#5aa2ff';const m=/^#?([0-9a-f]{6})$/i.exec(hex.trim());
@@ -628,9 +628,11 @@ const ST={
     this._days=days;
     if(days.length===1){this._showSingle()}else{this._showMulti(days,inT,outT)}
   },
+  defPause(){const v=A.d().settings&&A.d().settings.defaultPause;return v>0?v:0},
+  _presets(){const up=A.d().pausePresets||[];return[...new Set([0,10,15,20,30,40,45,50,60,this.defPause(),...up])].sort((a,b)=>a-b)},
   _showSingle(){
-    this.sp=null;const ud=A.d(),pr=[0,10,15,20,30,40,45,50,60],up=ud.pausePresets||[],all=[...new Set([...pr,...up])].sort((a,b)=>a-b);
-    document.getElementById('pChips').innerHTML=all.map(p=>`<button class="pi" onclick="ST.sp=${p};this.parentElement.querySelectorAll('.pi').forEach(c=>c.classList.remove('sel'));this.classList.add('sel');document.getElementById('cPause').value=''">${p}m</button>`).join('');
+    const all=this._presets();this.sp=this.defPause();
+    document.getElementById('pChips').innerHTML=all.map(p=>`<button class="pi${p===this.sp?' sel':''}" onclick="ST.sp=${p};this.parentElement.querySelectorAll('.pi').forEach(c=>c.classList.remove('sel'));this.classList.add('sel');document.getElementById('cPause').value=''">${p}m</button>`).join('');
     document.getElementById('cPause').value='';
     document.getElementById('singlePA').style.display='';document.getElementById('multiPA').style.display='none';document.getElementById('multiPA').innerHTML='';
     MO.open('pauseO')
@@ -653,6 +655,7 @@ const ST={
     const neu=[];
     if(days.length===1){
       let p=this.sp;const cv=document.getElementById('cPause').value;if(cv!=='')p=parseInt(cv)||0;if(p===null)p=0;
+      p=Math.max(0,Math.min(p,Math.floor((outT-inT)/6e4)));
       neu.push({dk:days[0],e:{in:ud.currentStamp||inT.toISOString(),out:outT.toISOString(),pause:p}})
     }else{
       for(let i=0;i<days.length;i++){
@@ -665,13 +668,38 @@ const ST={
       }
     }
     this.sp=null;
-    const ok=neu.filter(x=>!SAFE.dup(x.dk,x.e.in,x.e.out)); // 3. bereits erfasste Zeiträume auslassen
+    const ok=neu.filter(x=>!SAFE.dup(x.dk,x.e.in,x.e.out));
+    this._last=ok.length===1?ok[0]:null; // 3. bereits erfasste Zeiträume auslassen
     const args=[];
     ok.forEach(x=>{args.push(SAFE.fp('stamps',x.dk),SAFE.union(x.e))}); // 4. atomar & dedupliziert
     args.push('currentStamp',SAFE.del());
     MO.close('pauseO');
     SAFE.write(args,ok.length?(ok.length<neu.length?'Ausgestempelt – Duplikat übersprungen':'Ausgestempelt!'):null);
     if(!ok.length)U.toast('Zeitraum war bereits erfasst','')
+  },
+  // NFC-Ausstempeln: sofort mit Standard-Pause speichern, Pause danach optional anpassen
+  quickOut(){
+    this.openPause();
+    if(!this._days||this._days.length!==1)return;   // über Mitternacht → normaler Dialog
+    this.confirmPause();
+    if(this._last)this.openAdj()
+  },
+  openAdj(){
+    const l=this._last;if(!l)return;
+    document.getElementById('adjInfo').textContent=U.fTz(new Date(l.e.in))+' – '+U.fTz(new Date(l.e.out))+' · Pause '+l.e.pause+' min';
+    document.getElementById('adjChips').innerHTML=this._presets().map(p=>`<button class="pi${p===l.e.pause?' sel':''}" onclick="ST.setAdj(${p})">${p}m</button>`).join('');
+    document.getElementById('adjPause').value='';
+    MO.open('adjO')
+  },
+  setAdj(p){
+    const l=this._last;p=parseInt(p);if(!l||isNaN(p)||p<0)return;
+    p=Math.min(p,Math.floor((new Date(l.e.out)-new Date(l.e.in))/6e4));
+    const ent=(A.d().stamps&&A.d().stamps[l.dk])||[];
+    if(!ent.some(e=>e.in===l.e.in&&e.out===l.e.out)){U.toast('Eintrag nicht gefunden','error');return}
+    const upd=ent.map(e=>(e.in===l.e.in&&e.out===l.e.out)?{...e,pause:p}:e);
+    l.e={...l.e,pause:p};
+    SAFE.write([SAFE.fp('stamps',l.dk),upd],'Pause: '+p+' min');
+    this.openAdj()
   },
   async addPreset(){const v=prompt('Voreinstellung (Min):');if(v&&!isNaN(parseInt(v))){const ud=A.d(),p=ud.pausePresets||[];p.push(parseInt(v));await A.sf('pausePresets',[...new Set(p)])}},
 
@@ -1108,6 +1136,8 @@ const SE={
     document.getElementById('setHrs').value=s.weekHours||40;
     U.tzOpts('setTz',s.timezone||'Europe/Berlin');
     document.getElementById('setSD').value=s.startDate||'';
+    document.getElementById('setDP').value=s.defaultPause||'';
+    NFC.links();
     document.getElementById('setMT').value=s.emailTimes||'';
     document.getElementById('setMC').value=s.emailCal||'';
     const ys=(s.yearSettings&&s.yearSettings[this.sY])||{};
@@ -1131,6 +1161,7 @@ const SE={
     const ud=A.d(),s=ud.settings||{};
     s.fullName=document.getElementById('setName').value;s.weekHours=parseFloat(document.getElementById('setHrs').value)||40;
     s.timezone=document.getElementById('setTz').value;s.startDate=document.getElementById('setSD').value||null;
+    s.defaultPause=Math.max(0,parseInt(document.getElementById('setDP').value)||0);
     s.emailTimes=document.getElementById('setMT').value||'';s.emailCal=document.getElementById('setMC').value||'';
     if(!s.yearSettings)s.yearSettings={};
     s.yearSettings[this.sY]={vacDays:parseInt(document.getElementById('setVac').value)||30,carryOver:parseFloat(document.getElementById('setCO').value)||0,flexStart:parseFloat(document.getElementById('setFlex').value)||0};
@@ -1253,6 +1284,7 @@ document.getElementById('root').innerHTML=`
 <div id="admO" class="mo" onclick="if(event.target===this)MO.close('admO')"><div class="ml" style="max-height:90vh"><div class="mh"></div><div class="mt">Admin</div><div id="admList"></div><div style="margin-top:14px;border-top:1px solid rgba(255,255,255,.06);padding-top:14px"><div class="mt" style="font-size:15px">Backup</div><div style="display:flex;gap:8px"><button class="btn bs bg" onclick="ADM.expBk()" style="flex:1">Export</button><button class="btn bs bg" onclick="document.getElementById('bkF').click()" style="flex:1">Import</button><input type="file" id="bkF" accept=".json" style="display:none" onchange="ADM.impBk(event)"></div></div><div class="ma"><button class="btn bg" onclick="MO.close('admO')">Schließen</button></div></div></div>
 <div id="pwO" class="mo" onclick="if(event.target===this)MO.close('pwO')"><div class="ml"><div class="mh"></div><div class="mt">Passwort ändern</div><div class="fg"><label class="fl">User</label><input type="text" id="pwUser" autocomplete="username"></div><div class="fg"><label class="fl">Altes PW</label><input type="password" id="pwOld"></div><div class="fg"><label class="fl">Neues PW</label><input type="password" id="pwNew"></div><div class="ma"><button class="btn bg" onclick="MO.close('pwO')">Abbrechen</button><button class="btn bp" onclick="AUTH.changePw()">Ändern</button></div></div></div>
 <div id="pauseO" class="mo" onclick="if(event.target===this)MO.close('pauseO')"><div class="ml"><div class="mh"></div><div class="mt">Pause</div><div id="singlePA"><p style="font-size:13px;color:var(--text2);margin-bottom:12px">Wie lange war deine Pause?</p><div class="pc" id="pChips"></div><div class="fg" style="margin-top:12px"><label class="fl">Eigener Wert (Min)</label><input type="number" id="cPause" min="0" placeholder="z.B. 35" inputmode="numeric"></div></div><div id="multiPA" style="display:none"></div><div class="ma"><button class="btn bg" onclick="MO.close('pauseO')">Abbrechen</button><button class="btn bp" onclick="ST.confirmPause()">OK</button></div><div style="margin-top:10px;text-align:center"><button style="font-size:11px;color:var(--text2)" onclick="ST.addPreset()">+ Voreinstellung</button></div></div></div>
+<div id="adjO" class="mo" onclick="if(event.target===this)MO.close('adjO')"><div class="ml"><div class="mh"></div><div class="mt">Ausgestempelt ✓</div><p id="adjInfo" style="font-size:13px;color:var(--text2);margin-bottom:12px"></p><p style="font-size:13px;margin-bottom:10px">Pause anpassen (optional):</p><div class="pc" id="adjChips"></div><div class="fg" style="margin-top:12px"><label class="fl">Eigener Wert (Min)</label><div style="display:flex;gap:8px"><input type="number" id="adjPause" min="0" placeholder="z.B. 35" inputmode="numeric"><button class="btn bg" onclick="ST.setAdj(document.getElementById('adjPause').value)">OK</button></div></div><div class="ma"><button class="btn bp bw" onclick="MO.close('adjO')">Fertig</button></div></div></div>
 <div id="manO" class="mo" onclick="if(event.target===this)MO.close('manO')"><div class="ml"><div class="mh"></div><div class="mt">Manuell stempeln</div><div style="font-size:12px;font-weight:600;color:var(--blue);margin:10px 0 4px">Einstempeln</div><div class="fr"><div class="fg"><label class="fl">Datum</label><input type="date" id="mDateIn"></div><div class="fg"><label class="fl">Zeit</label><input type="time" id="mIn"></div></div><div class="fg"><label class="fl">Zeitzone Ein</label><select id="mTzIn" style="width:100%"></select></div><div style="font-size:12px;font-weight:600;color:var(--blue);margin:10px 0 4px">Ausstempeln</div><div class="fr"><div class="fg"><label class="fl">Datum</label><input type="date" id="mDateOut"></div><div class="fg"><label class="fl">Zeit</label><input type="time" id="mOut"></div></div><div class="fg"><label class="fl">Zeitzone Aus</label><select id="mTzOut" style="width:100%"></select></div><div class="fg"><label class="fl">Pause</label><div class="pc" id="mPC"></div><input type="number" id="mPause" min="0" placeholder="Min" style="margin-top:6px" inputmode="numeric"></div><div class="ma"><button class="btn bg" onclick="MO.close('manO')">Abbrechen</button><button class="btn bp" onclick="ST.saveManual()">Speichern</button></div></div></div>
 <div id="nachO" class="mo" onclick="if(event.target===this)MO.close('nachO')"><div class="ml"><div class="mh"></div><div class="mt" id="nachTitle">Stempeln nachholen</div><input type="hidden" id="nachMode" value="in"><div class="fg"><label class="fl">Datum</label><input type="date" id="nachDate"></div><div class="fg"><label class="fl">Uhrzeit</label><input type="time" id="nachTime"></div><div class="fg"><label class="fl">Zeitzone</label><select id="nachTz" style="width:100%"></select></div><div class="ma"><button class="btn bg" onclick="MO.close('nachO')">Abbrechen</button><button class="btn bp" onclick="ST.saveNach()">OK</button></div></div></div>
 <div id="holO" class="mo" onclick="if(event.target===this)MO.close('holO')"><div class="ml"><div class="mh"></div><div class="mt">Feiertage importieren</div><div class="fg"><label class="fl">Jahr</label><input type="number" id="holYear" min="2020" max="2040" inputmode="numeric"></div><div class="fg"><label class="fl">TT.MM.JJJJ Name</label><textarea id="holText" rows="5" placeholder="01.01.2025 Neujahr" style="font-size:13px"></textarea></div><div class="fg"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="holOW" style="width:auto;accent-color:var(--blue)"> Überschreiben</label></div><div class="ma"><button class="btn bg" onclick="MO.close('holO')">Abbrechen</button><button class="btn bp" onclick="SE.importHol()">Import</button></div></div></div>
@@ -1285,7 +1317,8 @@ document.getElementById('root').innerHTML=`
 <div class="sse"><div class="sst2">Design · Puls-Farbe</div><div style="font-size:12px;color:var(--text2);margin-bottom:10px">Farbe der Hervorhebung für aktuellen Monat, KW & heutigen Tag. Wird pro Benutzer geräteübergreifend gespeichert.</div>
 <div class="pc" id="pulsePresets"></div>
 <div class="sit" style="margin-top:6px"><span class="sil">Eigene Farbe</span><div class="siv" style="display:flex;align-items:center;gap:8px"><input type="color" id="setPulse" style="width:48px;height:42px;padding:3px;cursor:pointer" oninput="document.getElementById('pulseHex').textContent=this.value.toUpperCase();document.documentElement.style.setProperty('--pulse',this.value)" onchange="SE.setPulse(this.value)"><span id="pulseHex" style="font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums"></span></div></div></div>
-<div class="sse"><div class="sst2">Arbeitszeit</div><div class="sit"><span class="sil">Wochenstd.</span><div class="siv"><input type="number" id="setHrs" step="0.5" min="0" inputmode="decimal"></div></div><div class="sit"><span class="sil">Zählung ab</span><div class="siv"><input type="date" id="setSD"></div></div></div>
+<div class="sse"><div class="sst2">Arbeitszeit</div><div class="sit"><span class="sil">Wochenstd.</span><div class="siv"><input type="number" id="setHrs" step="0.5" min="0" inputmode="decimal"></div></div><div class="sit"><span class="sil">Zählung ab</span><div class="siv"><input type="date" id="setSD"></div></div><div class="sit"><span class="sil">Standard-Pause (Min)</span><div class="siv"><input type="number" id="setDP" min="0" placeholder="0" inputmode="numeric"></div></div></div>
+<div class="sse"><div class="sst2">NFC / Kurzbefehl</div><div style="font-size:12px;color:var(--text2);margin-bottom:10px">iPhone: Kurzbefehle-App → Automation → NFC → Tag scannen → Aktion „URL öffnen“ mit einem dieser Links → „Sofort ausführen“. Beim Ausstempeln wird die Standard-Pause gespeichert und kann danach optional angepasst werden. Links einmal in Safari öffnen und dort anmelden.</div><div id="nfcLinks"></div></div>
 <div class="sse"><div class="sst2">Jahr</div><div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div class="cn"><button onclick="SE.sY--;SE.load()">${SVG.L}</button></div><span id="sYE" style="font-weight:600;font-size:16px"></span><div class="cn"><button onclick="SE.sY++;SE.load()">${SVG.R}</button></div></div>
 <div class="sit"><span class="sil">Urlaubstage</span><div class="siv"><input type="number" id="setVac" min="0" inputmode="numeric"></div></div>
 <div class="sit"><span class="sil">Resturlaub VJ</span><div class="siv"><input type="number" id="setCO" min="0" step="0.5" inputmode="decimal"></div></div>
@@ -1313,7 +1346,40 @@ document.getElementById('root').innerHTML=`
 <div class="zoom-ctrl"><button class="zoom-btn" onclick="A.zoom=Math.min(150,A.zoom+10);A.applyZoom()">+</button><button class="zoom-btn" onclick="A.zoom=Math.max(50,A.zoom-10);A.applyZoom()">−</button></div>
 </div>`}
 
+// ===== NFC / Kurzbefehl: ?nfc=in | out | toggle =====
+const NFC={
+  _act:null,
+  grab(){
+    const a=(new URLSearchParams(location.search).get('nfc')||'').toLowerCase();
+    if(['in','out','toggle'].includes(a)){this._act=a;history.replaceState(null,'',location.pathname+location.hash)}
+  },
+  run(){
+    const a=this._act;if(!a||!A.user)return;this._act=null;
+    if(A.page!=='stemp')A.nav('stemp');
+    const ud=A.d(),cs=ud.currentStamp,n=U.now();
+    if(a==='in'||(a==='toggle'&&!cs)){
+      if(cs){U.toast('Bereits eingestempelt seit '+U.fT(new Date(cs)),'');return}
+      const ent=(ud.stamps&&ud.stamps[U.dk(n)])||[],lastOut=Math.max(0,...ent.map(e=>new Date(e.out).getTime()));
+      if(a==='toggle'&&n-lastOut<6e4){U.toast('Gerade erst ausgestempelt','');return}
+      ST.toggle();return
+    }
+    if(!cs){U.toast('Nicht eingestempelt','error');return}
+    if(a==='toggle'&&n-new Date(cs)<6e4){U.toast('Gerade erst eingestempelt','');return}
+    ST.quickOut()
+  },
+  links(){
+    const el=document.getElementById('nfcLinks');if(!el)return;
+    const base=location.origin+location.pathname;
+    el.innerHTML=[['in','Einstempeln'],['out','Ausstempeln'],['toggle','Ein/Aus (ein Chip)']].map(([k,l])=>`<div class="sit"><span class="sil">${l}</span><div class="siv" style="display:flex;align-items:center;gap:6px;min-width:0"><span style="font-size:10px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${base}?nfc=${k}</span><button class="btn bs bg" onclick="NFC.copy('${k}')">Kopieren</button></div></div>`).join('')
+  },
+  copy(k){
+    const u=location.origin+location.pathname+'?nfc='+k;
+    (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>U.toast('Link kopiert','success')).catch(()=>prompt('Link kopieren:',u))
+  }
+};
+
 async function init(){
+  NFC.grab();
   renderApp();
   setTimeout(()=>{const sp=document.getElementById('splash');if(sp)sp.classList.add('gone')},1750);
   await DB.ensure();
